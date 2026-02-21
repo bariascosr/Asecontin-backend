@@ -1,0 +1,835 @@
+{
+	"info": {
+		"_postman_id": "inmobiliaria-api-2025",
+		"name": "Asecontin API",
+		"description": "Colección de endpoints del backend Asecontin. Admin requiere token JWT (obtener con Login o Register).",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{ "key": "baseUrl", "value": "http://localhost:8080" },
+		{ "key": "token", "value": "" }
+	],
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var json = pm.response.json();",
+									"    if (json.data && json.data.token) {",
+									"        pm.collectionVariables.set('token', json.data.token);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"tu-password\"\n}"
+						},
+						"url": "{{baseUrl}}/api/auth/login",
+						"description": "Inicia sesión. Devuelve token, email, nombre, rol. El token se guarda en la variable de colección para los endpoints Admin."
+					}
+				},
+				{
+					"name": "Register (primer admin)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var json = pm.response.json();",
+									"    if (json.data && json.data.token) {",
+									"        pm.collectionVariables.set('token', json.data.token);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombre\": \"Administrador\",\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": "{{baseUrl}}/api/auth/register",
+						"description": "Registra el primer administrador. Solo funciona si aún no hay usuarios."
+					}
+				}
+			]
+		},
+		{
+			"name": "Público - Inmuebles",
+			"item": [
+				{
+					"name": "Listar inmuebles (paginado)",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/public/inmuebles?page=0&size=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "public", "inmuebles"],
+							"query": [
+								{ "key": "page", "value": "0" },
+								{ "key": "size", "value": "20" },
+								{ "key": "estadoId", "value": "", "disabled": true },
+								{ "key": "localidadId", "value": "", "disabled": true },
+								{ "key": "tipoId", "value": "", "disabled": true },
+								{ "key": "precioMin", "value": "", "disabled": true },
+								{ "key": "precioMax", "value": "", "disabled": true },
+								{ "key": "areaMin", "value": "", "disabled": true },
+								{ "key": "areaMax", "value": "", "disabled": true },
+								{ "key": "habitacionesMin", "value": "", "disabled": true },
+								{ "key": "habitacionesMax", "value": "", "disabled": true },
+								{ "key": "banosMin", "value": "", "disabled": true },
+								{ "key": "banosMax", "value": "", "disabled": true },
+								{ "key": "estratoMin", "value": "", "disabled": true },
+								{ "key": "estratoMax", "value": "", "disabled": true },
+								{ "key": "parqueaderosMin", "value": "", "disabled": true },
+								{ "key": "parqueaderosMax", "value": "", "disabled": true }
+							]
+						},
+						"description": "Filtros opcionales y combinables: estadoId, localidadId, tipoId, precioMin/Max, areaMin/Max (m²), habitacionesMin/Max, banosMin/Max, estratoMin/Max, parqueaderosMin/Max."
+					}
+				},
+				{
+					"name": "Detalle inmueble (con galería)",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/public/inmuebles/1",
+						"description": "Incluye listas de URLs de imágenes y videos."
+					}
+				}
+			]
+		},
+		{
+			"name": "Público - Ciudades",
+			"item": [
+				{
+					"name": "Listar ciudades (Colombia)",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/public/ciudades",
+						"description": "Ciudades permitidas para el campo ciudad (capitales de departamentos)."
+					}
+				}
+			]
+		},
+		{
+			"name": "Público - Localidades",
+			"item": [
+				{
+					"name": "Listar localidades (todas)",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/public/localidades",
+						"description": "Todas las localidades (por ahora principalmente Bogotá)."
+					}
+				},
+				{
+					"name": "Listar localidades por ciudad",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/public/localidades?ciudadId=14",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "public", "localidades"],
+							"query": [{ "key": "ciudadId", "value": "14", "description": "ID de ciudad (ej. 14 = Bogotá)" }]
+						},
+						"description": "Solo localidades de una ciudad. Obtener ciudadId de GET /api/public/ciudades."
+					}
+				}
+			]
+		},
+		{
+			"name": "Público - Tipos inmueble",
+			"item": [
+				{
+					"name": "Listar tipos de inmueble",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/public/tipos-inmueble",
+						"description": "Casa, Apartamento, Lote, etc. Para selector y filtro por tipoId."
+					}
+				}
+			]
+		},
+		{
+			"name": "Público - Sectores",
+			"item": [
+				{
+					"name": "Listar sectores",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/public/sectores",
+						"description": "Sectores de ciudad (Oriente, Occidente, etc.). Para selector sectorId al crear/actualizar inmueble."
+					}
+				}
+			]
+		},
+		{
+			"name": "Público - Configuración institucional",
+			"item": [
+				{
+					"name": "Obtener configuración actual (Acerca de nosotros)",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/public/configuracion-inmobiliaria",
+						"description": "Misión, visión, términos, política de datos, descripción para la sección Acerca de nosotros."
+					}
+				}
+			]
+		},
+		{
+			"name": "Público - Medios",
+			"item": [
+				{
+					"name": "Obtener imagen por ID",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/public/medios/imagen/1",
+						"description": "Sin auth. Para usar en img src. Devuelve el archivo binario."
+					}
+				},
+				{
+					"name": "Obtener video por ID",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/public/medios/video/1",
+						"description": "Sin auth. Para usar en video src."
+					}
+				}
+			]
+		},
+		{
+			"name": "Público - Artículos",
+			"item": [
+				{
+					"name": "Listar artículos",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/public/articulos?page=0&size=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "public", "articulos"],
+							"query": [
+								{ "key": "page", "value": "0" },
+								{ "key": "size", "value": "20" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Ver artículo",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/public/articulos/1"
+					}
+				}
+			]
+		},
+		{
+			"name": "Público - Contacto",
+			"item": [
+				{
+					"name": "Enviar mensaje de contacto",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombre\": \"Juan Pérez\",\n  \"email\": \"juan@example.com\",\n  \"mensaje\": \"Me interesa el inmueble de la calle 100.\",\n  \"inmuebleId\": 1\n}"
+						},
+						"url": "{{baseUrl}}/api/public/contacto",
+						"description": "Responde 202 Accepted. inmuebleId es opcional."
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin - Me",
+			"item": [
+				{
+					"name": "Comprobar token (admin/me)",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": "{{baseUrl}}/api/admin/me",
+						"description": "Devuelve email y mensaje si el token es válido."
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin - Usuarios",
+			"item": [
+				{
+					"name": "Mi perfil (GET)",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": "{{baseUrl}}/api/admin/usuarios/me"
+					}
+				},
+				{
+					"name": "Actualizar perfil (nombre)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombre\": \"Admin Actualizado\"\n}"
+						},
+						"url": "{{baseUrl}}/api/admin/usuarios/me"
+					}
+				},
+				{
+					"name": "Actualizar perfil (cambiar contraseña)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"passwordActual\": \"password123\",\n  \"nuevaPassword\": \"nuevo-password-456\"\n}"
+						},
+						"url": "{{baseUrl}}/api/admin/usuarios/me"
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin - Estados",
+			"item": [
+				{
+					"name": "Listar estados",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/estados?page=0&size=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "estados"],
+							"query": [
+								{ "key": "page", "value": "0" },
+								{ "key": "size", "value": "20" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Obtener estado por ID",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": "{{baseUrl}}/api/admin/estados/1"
+					}
+				},
+				{
+					"name": "Crear estado",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombreEstado\": \"disponible\"\n}"
+						},
+						"url": "{{baseUrl}}/api/admin/estados"
+					}
+				},
+				{
+					"name": "Actualizar estado",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombreEstado\": \"vendido\"\n}"
+						},
+						"url": "{{baseUrl}}/api/admin/estados/1"
+					}
+				},
+				{
+					"name": "Eliminar estado",
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": "{{baseUrl}}/api/admin/estados/1",
+						"description": "204 sin cuerpo. Falla si el estado está en uso por inmuebles."
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin - Localidades",
+			"item": [
+				{
+					"name": "Listar localidades",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/localidades?page=0&size=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "localidades"],
+							"query": [
+								{ "key": "page", "value": "0" },
+								{ "key": "size", "value": "20" }
+							]
+						},
+						"description": "Localidades por ciudad (principalmente Bogotá)."
+					}
+				},
+				{
+					"name": "Obtener localidad por ID",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": "{{baseUrl}}/api/admin/localidades/1"
+					}
+				},
+				{
+					"name": "Crear localidad",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombre\": \"Chapinero\",\n  \"ciudadId\": 14\n}"
+						},
+						"url": "{{baseUrl}}/api/admin/localidades",
+						"description": "nombre y ciudadId obligatorios. ciudadId de GET /api/public/ciudades (Bogotá = 14 si es el orden del script)."
+					}
+				},
+				{
+					"name": "Actualizar localidad",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombre\": \"Chapinero (actualizado)\",\n  \"ciudadId\": 14\n}"
+						},
+						"url": "{{baseUrl}}/api/admin/localidades/1"
+					}
+				},
+				{
+					"name": "Eliminar localidad",
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": "{{baseUrl}}/api/admin/localidades/1",
+						"description": "204 sin cuerpo."
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin - Configuración institucional",
+			"item": [
+				{
+					"name": "Listar configuraciones",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/configuracion-inmobiliaria?page=0&size=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "configuracion-inmobiliaria"],
+							"query": [
+								{ "key": "page", "value": "0" },
+								{ "key": "size", "value": "20" }
+							]
+						},
+						"description": "Lista filas de configuración (misión, visión, términos, etc.). Normalmente una sola."
+					}
+				},
+				{
+					"name": "Obtener configuración por ID",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": "{{baseUrl}}/api/admin/configuracion-inmobiliaria/1"
+					}
+				},
+				{
+					"name": "Crear configuración",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"mision\": \"Nuestra misión es...\",\n  \"vision\": \"Ser la inmobiliaria de referencia...\",\n  \"terminosCondiciones\": \"Al usar este sitio...\",\n  \"politicaTratamientoDatos\": \"En cumplimiento de la Ley 1581 de 2012...\",\n  \"descripcion\": \"Somos una inmobiliaria con años de experiencia.\"\n}"
+						},
+						"url": "{{baseUrl}}/api/admin/configuracion-inmobiliaria",
+						"description": "Todos los campos opcionales."
+					}
+				},
+				{
+					"name": "Actualizar configuración",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"mision\": \"Misión actualizada.\",\n  \"vision\": \"Visión actualizada.\",\n  \"terminosCondiciones\": \"Términos actualizados.\",\n  \"politicaTratamientoDatos\": \"Política actualizada.\",\n  \"descripcion\": \"Descripción actualizada.\"\n}"
+						},
+						"url": "{{baseUrl}}/api/admin/configuracion-inmobiliaria/1"
+					}
+				},
+				{
+					"name": "Eliminar configuración",
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": "{{baseUrl}}/api/admin/configuracion-inmobiliaria/1",
+						"description": "204 sin cuerpo."
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin - Inmuebles",
+			"item": [
+				{
+					"name": "Listar inmuebles",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/inmuebles?page=0&size=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "inmuebles"],
+							"query": [
+								{ "key": "page", "value": "0" },
+								{ "key": "size", "value": "20" },
+								{ "key": "estadoId", "value": "", "disabled": true },
+								{ "key": "localidadId", "value": "", "disabled": true },
+								{ "key": "tipoId", "value": "", "disabled": true },
+								{ "key": "precioMin", "value": "", "disabled": true },
+								{ "key": "precioMax", "value": "", "disabled": true },
+								{ "key": "areaMin", "value": "", "disabled": true },
+								{ "key": "areaMax", "value": "", "disabled": true },
+								{ "key": "habitacionesMin", "value": "", "disabled": true },
+								{ "key": "habitacionesMax", "value": "", "disabled": true },
+								{ "key": "banosMin", "value": "", "disabled": true },
+								{ "key": "banosMax", "value": "", "disabled": true },
+								{ "key": "estratoMin", "value": "", "disabled": true },
+								{ "key": "estratoMax", "value": "", "disabled": true },
+								{ "key": "parqueaderosMin", "value": "", "disabled": true },
+								{ "key": "parqueaderosMax", "value": "", "disabled": true }
+							]
+						},
+						"description": "Filtros opcionales y combinables: estadoId, localidadId, tipoId, precioMin/Max, areaMin/Max (m²), habitacionesMin/Max, banosMin/Max, estratoMin/Max, parqueaderosMin/Max."
+					}
+				},
+				{
+					"name": "Obtener inmueble por ID",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": "{{baseUrl}}/api/admin/inmuebles/1"
+					}
+				},
+				{
+					"name": "Crear inmueble",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"titulo\": \"Casa en Chapinero\",\n  \"descripcion\": \"Amplia casa con jardín.\",\n  \"precio\": 450000000,\n  \"direccion\": \"Calle 72 # 10-34\",\n  \"localidadId\": 2,\n  \"tipoId\": 1,\n  \"estadoId\": 1,\n  \"etiquetas\": \"nuevo\",\n  \"parqueaderos\": 2,\n  \"sectorId\": 1,\n  \"areaM2\": 120.50,\n  \"habitaciones\": 3,\n  \"banos\": 2,\n  \"estrato\": 4,\n  \"valorAdministracion\": 350000,\n  \"anoConstruccion\": 2018,\n  \"amoblado\": false,\n  \"piso\": 1\n}"
+						},
+						"url": "{{baseUrl}}/api/admin/inmuebles",
+						"description": "estadoId debe existir. sectorId opcional (GET /api/public/sectores). Opc.: parqueaderos, sectorId, areaM2, habitaciones, banos, estrato, valorAdministracion, anoConstruccion, amoblado, piso."
+					}
+				},
+				{
+					"name": "Actualizar inmueble",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"titulo\": \"Casa en Chapinero (actualizada)\",\n  \"descripcion\": \"Amplia casa con jardín y garaje.\",\n  \"precio\": 480000000,\n  \"direccion\": \"Calle 72 # 10-34\",\n  \"localidadId\": 2,\n  \"tipoId\": 1,\n  \"estadoId\": 1,\n  \"etiquetas\": \"nuevo, rebajado\",\n  \"parqueaderos\": 2,\n  \"sectorId\": 1,\n  \"areaM2\": 120.50,\n  \"habitaciones\": 3,\n  \"banos\": 2,\n  \"estrato\": 4,\n  \"valorAdministracion\": 350000,\n  \"anoConstruccion\": 2018,\n  \"amoblado\": false,\n  \"piso\": 1\n}"
+						},
+						"url": "{{baseUrl}}/api/admin/inmuebles/1"
+					}
+				},
+				{
+					"name": "Eliminar inmueble",
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": "{{baseUrl}}/api/admin/inmuebles/1"
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin - Imágenes",
+			"item": [
+				{
+					"name": "Listar imágenes del inmueble",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": "{{baseUrl}}/api/admin/inmuebles/1/imagenes",
+						"description": "Máximo 7 imágenes por inmueble."
+					}
+				},
+				{
+					"name": "Agregar imagen",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"urlImagen\": \"https://storage.example.com/inmueble-1/foto1.jpg\"\n}"
+						},
+						"url": "{{baseUrl}}/api/admin/inmuebles/1/imagenes"
+					}
+				},
+				{
+					"name": "Agregar imagen como principal",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"urlImagen\": \"https://storage.example.com/inmueble-1/portada.jpg\",\n  \"esPrincipal\": true\n}"
+						},
+						"url": "{{baseUrl}}/api/admin/inmuebles/1/imagenes",
+						"description": "Imagen de muestra en listados. Solo una por inmueble."
+					}
+				},
+				{
+					"name": "Marcar imagen como principal",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"esPrincipal\": true\n}"
+						},
+						"url": "{{baseUrl}}/api/admin/inmuebles/1/imagenes/2",
+						"description": "La imagen que estaba como principal deja de serlo."
+					}
+				},
+				{
+					"name": "Eliminar imagen",
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": "{{baseUrl}}/api/admin/inmuebles/1/imagenes/1"
+					}
+				},
+				{
+					"name": "Subir imagen (upload)",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "file", "type": "file", "src": [] },
+								{ "key": "esPrincipal", "type": "text", "value": "false", "description": "true para imagen de muestra en listados" }
+							]
+						},
+						"url": "{{baseUrl}}/api/admin/inmuebles/1/imagenes/upload",
+						"description": "Multipart: file (jpg/png/gif/webp), esPrincipal opcional. Respuesta incluye urlImagen pública."
+					}
+				},
+				{
+					"name": "Subir hasta 7 imágenes (batch)",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "files", "type": "file", "src": [], "description": "Añadir varias filas con key 'files' y seleccionar un archivo en cada una" },
+								{ "key": "files", "type": "file", "src": [] },
+								{ "key": "esPrincipalIndex", "type": "text", "value": "0", "description": "Índice 0-based de la imagen principal (0 = primera). Opcional." }
+							]
+						},
+						"url": "{{baseUrl}}/api/admin/inmuebles/1/imagenes/upload-batch",
+						"description": "Varias imágenes en una petición. Partes: 'files' (repetir por cada archivo), 'esPrincipalIndex' opcional. Máx. 7 por inmueble."
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin - Videos",
+			"item": [
+				{
+					"name": "Listar videos del inmueble",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": "{{baseUrl}}/api/admin/inmuebles/1/videos",
+						"description": "Máximo 1 video por inmueble."
+					}
+				},
+				{
+					"name": "Agregar video",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"urlVideo\": \"https://storage.example.com/inmueble-1/recorrido.mp4\"\n}"
+						},
+						"url": "{{baseUrl}}/api/admin/inmuebles/1/videos"
+					}
+				},
+				{
+					"name": "Subir video (upload)",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "file", "type": "file", "src": [] }
+							]
+						},
+						"url": "{{baseUrl}}/api/admin/inmuebles/1/videos/upload",
+						"description": "Multipart: file. Formatos: mp4, webm, mov, avi, mkv, m4v, ogv, 3gp. Máximo 1 video por inmueble. Respuesta incluye urlVideo pública."
+					}
+				},
+				{
+					"name": "Eliminar video",
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": "{{baseUrl}}/api/admin/inmuebles/1/videos/1"
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin - Artículos",
+			"item": [
+				{
+					"name": "Listar artículos",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/articulos?page=0&size=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "articulos"],
+							"query": [
+								{ "key": "page", "value": "0" },
+								{ "key": "size", "value": "20" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Obtener artículo por ID",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": "{{baseUrl}}/api/admin/articulos/1"
+					}
+				},
+				{
+					"name": "Crear artículo",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"titulo\": \"Tendencias del mercado inmobiliario 2025\",\n  \"contenido\": \"Contenido completo del artículo...\"\n}"
+						},
+						"url": "{{baseUrl}}/api/admin/articulos"
+					}
+				},
+				{
+					"name": "Actualizar artículo",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"titulo\": \"Tendencias del mercado inmobiliario 2025 (actualizado)\",\n  \"contenido\": \"Contenido actualizado del artículo...\"\n}"
+						},
+						"url": "{{baseUrl}}/api/admin/articulos/1"
+					}
+				},
+				{
+					"name": "Eliminar artículo",
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": "{{baseUrl}}/api/admin/articulos/1"
+					}
+				}
+			]
+		}
+	]
+}
