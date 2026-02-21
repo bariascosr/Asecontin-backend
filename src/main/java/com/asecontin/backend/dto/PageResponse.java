@@ -8,7 +8,7 @@ import java.util.List;
  * Respuesta paginada estándar. Incluye la página de elementos y metadatos de paginación.
  *
  * @param content       lista de elementos de la página actual
- * @param totalElements total de elementos en todo el conjunto
+ * @param totalElements total de elementos en el conjunto
  * @param totalPages    total de páginas
  * @param number        número de página actual (0-based)
  * @param size          tamaño de página
