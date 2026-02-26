@@ -11,7 +11,7 @@ public record InmuebleDetallePublicoResponse(
 		Long id,
 		String titulo,
 		String descripcion,
-		BigDecimal precio,
+		BigDecimal precioVenta,
 		String direccion,
 		Long localidadId,
 		String localidadNombre,

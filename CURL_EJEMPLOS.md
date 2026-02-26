@@ -3,7 +3,7 @@
 Base URL por defecto: **http://localhost:8080** (ajustar si el backend corre en otro host/puerto).
 
 - **Admin:** cabecera `Authorization: Bearer <token>`. Token con `POST /api/auth/login` o `POST /api/auth/register`.
-- **Público:** sin token. Incluye listados, detalle, catálogos (ciudades, localidades, tipos, sectores), configuración institucional (Acerca de nosotros), medios (imagen/video), artículos y contacto.
+- **Público:** sin token. Incluye listados, detalle, catálogos (ciudades, localidades, tipos, sectores), configuración institucional (Acerca de nosotros), medios (imagen/video), contacto y consulta de inmuebles por cédula y fecha de expedición (propietario y arrendatario; ambos parámetros obligatorios).
 
 ---
 
@@ -96,6 +96,14 @@ Listar tipos de inmueble permitidos (Casa, Apartamento, Lote, etc.). Para select
 curl -s "http://localhost:8080/api/public/tipos-inmueble"
 ```
 
+### GET /api/public/estados
+
+Listar estados de inmueble (En venta, Disponible para arriendo, Arrendado, Vendido, Reservado). Sin autenticación. Para filtros en el listado: el cliente puede filtrar por `estadoId` en `GET /api/public/inmuebles?estadoId=...` (ej. ver solo inmuebles en venta o disponibles para arriendo).
+
+```bash
+curl -s "http://localhost:8080/api/public/estados"
+```
+
 ### GET /api/public/sectores
 
 Listar sectores de ciudad (Oriente, Occidente, Norte, Sur, Centro, etc.). Para selector; al crear/actualizar un inmueble se puede enviar `sectorId` (id de uno de esta lista). Opcional.
@@ -130,24 +138,6 @@ Obtener el archivo de video por ID. Para usar en `<video src="...">`.
 curl -s -o video.mp4 "http://localhost:8080/api/public/medios/video/1"
 ```
 
-### Artículos del blog
-
-### GET /api/public/articulos
-
-Listar artículos del blog (paginado).
-
-```bash
-curl -s "http://localhost:8080/api/public/articulos?page=0&size=20"
-```
-
-### GET /api/public/articulos/{id}
-
-Ver un artículo.
-
-```bash
-curl -s "http://localhost:8080/api/public/articulos/1"
-```
-
 ### Contacto
 
 ### POST /api/public/contacto
@@ -166,6 +156,26 @@ curl -s -X POST http://localhost:8080/api/public/contacto \
 ```
 
 *(`inmuebleId` es opcional.)*
+
+### Consulta propietario / arrendatario (público; cédula y fecha de expedición obligatorios)
+
+El propietario o el arrendatario deben indicar **cédula** y **fecha de expedición** (ambos obligatorios) para consultar sus inmuebles y el valor de arriendo.
+
+#### GET /api/public/propietarios/inmuebles?cedula={cedula}&fechaExpedicion={yyyy-MM-dd}
+
+Inmuebles del propietario. Parámetros: `cedula` (obligatorio), `fechaExpedicion` (obligatorio, formato `yyyy-MM-dd`). Devuelve datos del propietario y lista de **todos** los inmuebles asociados (información completa, incl. valorArriendo).
+
+```bash
+curl -s "http://localhost:8080/api/public/propietarios/inmuebles?cedula=1234567890&fechaExpedicion=2020-05-15"
+```
+
+#### GET /api/public/arrendatarios/inmuebles?cedula={cedula}&fechaExpedicion={yyyy-MM-dd}
+
+Inmuebles donde está en arriendo el arrendatario. Parámetros: `cedula` (obligatorio), `fechaExpedicion` (obligatorio, formato `yyyy-MM-dd`). Devuelve datos del arrendatario y lista de inmuebles con información completa (InmuebleResponse), solo los en estado "Arrendado" (incluye valorArriendo).
+
+```bash
+curl -s "http://localhost:8080/api/public/arrendatarios/inmuebles?cedula=9876543210&fechaExpedicion=2019-03-20"
+```
 
 ---
 
@@ -418,16 +428,17 @@ curl -s "http://localhost:8080/api/admin/inmuebles/1" \
 
 ### POST /api/admin/inmuebles
 
-Crear inmueble (requiere JWT). `estadoId` y `localidadId` deben existir. Use `GET /api/public/localidades` para la lista de localidades. Campos opcionales: `parqueaderos`, `sectorId`, `areaM2`, `habitaciones`, `banos`, `estrato`, `valorAdministracion`, `anoConstruccion`, `amoblado`, `piso`. Si se envía `sectorId`, debe existir en `GET /api/public/sectores`.
+Crear inmueble (requiere JWT). **Al menos uno de `precioVenta` (precio de venta) o `valorArriendo` es obligatorio**: si es solo arriendo no se envía `precioVenta`; si es venta se envía `precioVenta`. Obligatorios: titulo, direccion, localidadId, tipoId, estadoId. Opcionales: valorArriendo, propietarioId, parqueaderos, sectorId, areaM2, habitaciones, banos, estrato, valorAdministracion, anoConstruccion, amoblado, piso. Filtros `precioMin`/`precioMax` en listados aplican a precio de venta.
 
 ```bash
+# Inmueble en venta (precioVenta obligatorio; valorArriendo opcional)
 curl -s -X POST http://localhost:8080/api/admin/inmuebles \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "titulo": "Casa en Chapinero",
     "descripcion": "Amplia casa con jardín.",
-    "precio": 450000000,
+    "precioVenta": 450000000,
     "direccion": "Calle 72 # 10-34",
     "localidadId": 2,
     "tipoId": 1,
@@ -444,11 +455,30 @@ curl -s -X POST http://localhost:8080/api/admin/inmuebles \
     "amoblado": false,
     "piso": 1
   }'
+
+# Inmueble en arriendo (valorArriendo obligatorio; precioVenta no se envía)
+curl -s -X POST http://localhost:8080/api/admin/inmuebles \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "titulo": "Apartamento en arriendo",
+    "descripcion": "Apartamento amoblado.",
+    "valorArriendo": 1500000,
+    "direccion": "Carrera 15 # 80-20",
+    "localidadId": 2,
+    "tipoId": 2,
+    "estadoId": 2,
+    "parqueaderos": 1,
+    "areaM2": 65,
+    "habitaciones": 2,
+    "banos": 1,
+    "estrato": 3
+  }'
 ```
 
 ### PUT /api/admin/inmuebles/{id}
 
-Actualizar inmueble. Mismos campos que crear; obligatorios: titulo, precio, direccion, localidadId, tipoId, estadoId. Opcionales: `parqueaderos`, `sectorId`, `areaM2`, `habitaciones`, `banos`, `estrato`, `valorAdministracion`, `anoConstruccion`, `amoblado`, `piso`.
+Actualizar inmueble. Se pueden modificar **todos** los campos: titulo, descripcion, precioVenta, valorArriendo, direccion, localidadId, tipoId, estadoId, propietarioId, etiquetas, parqueaderos, sectorId, areaM2, habitaciones, banos, estrato, valorAdministracion, anoConstruccion, amoblado, piso. Al menos uno de **precioVenta** o **valorArriendo** es obligatorio.
 
 ```bash
 curl -s -X PUT http://localhost:8080/api/admin/inmuebles/1 \
@@ -457,7 +487,7 @@ curl -s -X PUT http://localhost:8080/api/admin/inmuebles/1 \
   -d '{
     "titulo": "Casa en Chapinero (actualizada)",
     "descripcion": "Amplia casa con jardín y garaje.",
-    "precio": 480000000,
+    "precioVenta": 480000000,
     "direccion": "Calle 72 # 10-34",
     "localidadId": 2,
     "tipoId": 1,
@@ -614,58 +644,189 @@ curl -s -X DELETE "http://localhost:8080/api/admin/inmuebles/1/videos/1" \
 
 ---
 
-### GET /api/admin/articulos
+### Propietarios (CRUD y consultas por cédula / fecha de expedición)
 
-Listar artículos (paginado).
+Los propietarios tienen relación 1 a muchos con inmuebles. El listado admin (`GET /api/admin/propietarios`), la consulta por ID, por `cedula` o por `fechaExpedicion` devuelven cada propietario con el listado de inmuebles asociados en formato **completo** (InmuebleResponse: todos los campos del inmueble, incl. valorArriendo y propietarioId). Este detalle no se expone en la API pública.
+
+#### GET /api/admin/propietarios
+
+Listar propietarios (paginado). Cada propietario incluye **toda la información** y el listado de inmuebles asociados con **información completa** (mismo formato que InmuebleResponse: titulo, descripcion, precioVenta, valorArriendo, direccion, localidad, tipo, estado, etc.).
 
 ```bash
-curl -s "http://localhost:8080/api/admin/articulos?page=0&size=20" \
+curl -s "http://localhost:8080/api/admin/propietarios?page=0&size=20" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-### GET /api/admin/articulos/{id}
+#### GET /api/admin/propietarios/{id}
 
-Obtener un artículo por ID.
+Obtener un propietario por ID (con inmuebles asociados e incluyendo valorArriendo).
 
 ```bash
-curl -s "http://localhost:8080/api/admin/articulos/1" \
+curl -s "http://localhost:8080/api/admin/propietarios/1" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-### POST /api/admin/articulos
+#### GET /api/admin/propietarios?cedula={cedula}
 
-Crear artículo.
+Consulta por cédula. Devuelve el/los propietarios que coincidan y el listado de inmuebles asociados con **valorArriendo** (precio de arrendamiento).
 
 ```bash
-curl -s -X POST http://localhost:8080/api/admin/articulos \
+curl -s "http://localhost:8080/api/admin/propietarios?cedula=1234567890" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+#### GET /api/admin/propietarios?fechaExpedicion={yyyy-MM-dd}
+
+Consulta por fecha de expedición. Devuelve propietarios con esa fecha y el listado de inmuebles asociados con **valorArriendo**.
+
+```bash
+curl -s "http://localhost:8080/api/admin/propietarios?fechaExpedicion=2020-05-15" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+#### POST /api/admin/propietarios
+
+Crear propietario. Body: `nombres`, `apellidos`, `cedula` (obligatorios), `fechaExpedicion` (opcional, yyyy-MM-dd), `inmuebleIds` (obligatorio: lista con al menos un ID de inmueble a asignar como propiedad). La respuesta incluye el propietario con sus inmuebles.
+
+```bash
+# Con inmuebles asignados (inmuebleIds obligatorio, al menos uno)
+curl -s -X POST http://localhost:8080/api/admin/propietarios \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "titulo": "Tendencias del mercado inmobiliario 2025",
-    "contenido": "Contenido completo del artículo..."
+    "nombres": "Carlos",
+    "apellidos": "Pérez Gómez",
+    "cedula": "1234567890",
+    "fechaExpedicion": "2020-05-15",
+    "inmuebleIds": [1, 2]
   }'
 ```
 
-### PUT /api/admin/articulos/{id}
+#### PUT /api/admin/propietarios/{id}
 
-Actualizar artículo.
+Actualizar propietario.
 
 ```bash
-curl -s -X PUT http://localhost:8080/api/admin/articulos/1 \
+curl -s -X PUT http://localhost:8080/api/admin/propietarios/1 \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "titulo": "Tendencias del mercado inmobiliario 2025 (actualizado)",
-    "contenido": "Contenido actualizado del artículo..."
+    "nombres": "Carlos",
+    "apellidos": "Pérez Gómez",
+    "cedula": "1234567890",
+    "fechaExpedicion": "2021-01-10"
   }'
 ```
 
-### DELETE /api/admin/articulos/{id}
+#### DELETE /api/admin/propietarios/{id}
 
-Eliminar artículo (204 sin cuerpo).
+Eliminar propietario (204 sin cuerpo). Los inmuebles asociados quedan con `propietario_id` en NULL.
 
 ```bash
-curl -s -X DELETE "http://localhost:8080/api/admin/articulos/1" \
+curl -s -X DELETE "http://localhost:8080/api/admin/propietarios/1" \
+  -H "Authorization: Bearer $TOKEN" -w "\nHTTP %{http_code}\n"
+```
+
+---
+
+### Arrendatarios (CRUD y consultas por cédula / fecha de expedición)
+
+Los arrendatarios tienen relación N:M con inmuebles (tabla enlace). El listado admin, GET por ID y las consultas por `cedula` o `fechaExpedicion` devuelven cada arrendatario con el listado de inmuebles asociados en **información completa** (mismo formato InmuebleResponse que en propietarios; incluye valorArriendo y el resto de campos).
+
+#### GET /api/admin/arrendatarios
+
+Listar arrendatarios (paginado). Cada ítem incluye `inmuebles` con información completa (InmuebleResponse).
+
+```bash
+curl -s "http://localhost:8080/api/admin/arrendatarios?page=0&size=20" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+#### GET /api/admin/arrendatarios/{id}
+
+Obtener un arrendatario por ID (con listado de inmuebles asociados con información completa, InmuebleResponse).
+
+```bash
+curl -s "http://localhost:8080/api/admin/arrendatarios/1" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+#### GET /api/admin/arrendatarios?cedula={cedula}
+
+Consulta por cédula. Devuelve el/los arrendatarios que coincidan y el listado de inmuebles asociados con información completa (InmuebleResponse).
+
+```bash
+curl -s "http://localhost:8080/api/admin/arrendatarios?cedula=9876543210" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+#### GET /api/admin/arrendatarios?fechaExpedicion={yyyy-MM-dd}
+
+Consulta por fecha de expedición. Devuelve arrendatarios con esa fecha y el listado de inmuebles asociados con información completa (InmuebleResponse).
+
+```bash
+curl -s "http://localhost:8080/api/admin/arrendatarios?fechaExpedicion=2019-03-20" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+#### POST /api/admin/arrendatarios
+
+Crear arrendatario. Body: `nombres`, `apellidos`, `cedula` (obligatorios), `fechaExpedicion` (opcional, yyyy-MM-dd), `inmuebleIds` (obligatorio: lista con al menos un ID de inmueble con el que asociar). La respuesta incluye el arrendatario con sus inmuebles (información completa, InmuebleResponse).
+
+```bash
+# Con inmuebles asociados (inmuebleIds obligatorio, al menos uno)
+curl -s -X POST http://localhost:8080/api/admin/arrendatarios \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombres": "María",
+    "apellidos": "López Sánchez",
+    "cedula": "9876543210",
+    "fechaExpedicion": "2019-03-20",
+    "inmuebleIds": [1, 3]
+  }'
+```
+
+#### PUT /api/admin/arrendatarios/{id}
+
+Actualizar arrendatario.
+
+```bash
+curl -s -X PUT http://localhost:8080/api/admin/arrendatarios/1 \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombres": "María",
+    "apellidos": "López Sánchez",
+    "cedula": "9876543210",
+    "fechaExpedicion": "2019-03-20"
+  }'
+```
+
+#### DELETE /api/admin/arrendatarios/{id}
+
+Eliminar arrendatario (204 sin cuerpo). Se eliminan los vínculos en `inmueble_arrendatario`.
+
+```bash
+curl -s -X DELETE "http://localhost:8080/api/admin/arrendatarios/1" \
+  -H "Authorization: Bearer $TOKEN" -w "\nHTTP %{http_code}\n"
+```
+
+#### POST /api/admin/arrendatarios/{arrendatarioId}/inmuebles/{inmuebleId}
+
+Asociar arrendatario a un inmueble (204 sin cuerpo).
+
+```bash
+curl -s -X POST "http://localhost:8080/api/admin/arrendatarios/1/inmuebles/1" \
+  -H "Authorization: Bearer $TOKEN" -w "\nHTTP %{http_code}\n"
+```
+
+#### DELETE /api/admin/arrendatarios/{arrendatarioId}/inmuebles/{inmuebleId}
+
+Desasociar arrendatario de un inmueble (204 sin cuerpo).
+
+```bash
+curl -s -X DELETE "http://localhost:8080/api/admin/arrendatarios/1/inmuebles/1" \
   -H "Authorization: Bearer $TOKEN" -w "\nHTTP %{http_code}\n"
 ```
 
@@ -727,7 +888,7 @@ Cuando `data` es una página (estados, inmuebles, artículos), tiene esta forma:
 | `first`         | boolean | `true`   | `true` si es la primera página       |
 | `last`          | boolean | `false`  | `true` si es la última página        |
 
-Cada elemento de `content` depende del recurso (EstadoResponse, InmuebleResponse, ArticuloResponse, etc.); se describen abajo.
+Cada elemento de `content` depende del recurso (EstadoResponse, InmuebleResponse, etc.); se describen abajo.
 
 ---
 
@@ -811,14 +972,14 @@ Contenido de `data` en `GET /api/public/configuracion-inmobiliaria` y en el CRUD
 
 ### InmuebleResponse (inmuebles en listados y CRUD admin)
 
-Contenido de cada elemento en `content` (listados) o `data` (obtener/crear/actualizar). Usado en `/api/admin/inmuebles` y en listado/detalle público cuando no se pide galería. Incluye `imagenPrincipal` para la imagen de muestra en cards/listados.
+Contenido de cada elemento en `content` (listados) o `data` (obtener/crear/actualizar). Usado en `/api/admin/inmuebles` y en listado/detalle público cuando no se pide galería. Incluye `imagenPrincipal` para la imagen de muestra en cards/listados. **En API pública** (`/api/public/inmuebles`) los campos `valorArriendo` y `propietarioId` no se exponen (vienen como `null`).
 
 | Campo             | Tipo   | Ejemplo                    |
 |-------------------|--------|----------------------------|
 | `id`              | number | `1`                        |
 | `titulo`          | string | `"Casa en Chapinero"`      |
 | `descripcion`     | string | `"Amplia casa con jardín."` o `null` |
-| `precio`          | number | `450000000`                |
+| `precioVenta`     | number | `450000000` (precio de venta en COP; puede ser `null` si solo es arriendo) |
 | `direccion`       | string | `"Calle 72 # 10-34"`       |
 | `localidadId`      | number | `2`                        |
 | `localidadNombre`  | string | `"Chapinero"`              |
@@ -826,6 +987,8 @@ Contenido de cada elemento en `content` (listados) o `data` (obtener/crear/actua
 | `tipo`            | string | Nombre del tipo (ej. `"Casa"`). En request se envía `tipoId` (número). |
 | `estadoId`        | number | `1`                        |
 | `estadoNombre`    | string | `"disponible"`             |
+| `valorArriendo`   | number | Canon de arriendo en COP. Solo en respuestas **admin**; en público viene `null`. |
+| `propietarioId`   | number | ID del propietario. Solo en respuestas **admin**; en público viene `null`. |
 | `etiquetas`       | string | `"nuevo"` o `null`         |
 | `parqueaderos`    | number | `2` (por defecto 0)        |
 | `sectorId`        | number | `1` o `null`               |
@@ -880,16 +1043,33 @@ Contenido de cada elemento en `content` (listado) o `data` (crear). Usado en `/a
 
 ---
 
-### ArticuloResponse (blog/noticias)
+### PropietarioResponse (propietarios)
 
-Contenido de cada elemento en `content` (listados) o `data` (obtener/crear/actualizar). Usado en `/api/admin/articulos` y `/api/public/articulos`.
+Contenido de cada elemento en `content` (listados) o `data` (obtener/crear/actualizar). En **admin** (listado, por ID, por cédula o por fecha de expedición) incluye `inmuebles`: listado de inmuebles asociados con **información completa** (misma estructura que InmuebleResponse: id, titulo, descripcion, precioVenta, valorArriendo, direccion, localidadNombre, ciudadNombre, tipo, estadoId, estadoNombre, etc.).
 
-| Campo            | Tipo   | Ejemplo                         |
-|------------------|--------|---------------------------------|
-| `id`             | number | `1`                             |
-| `titulo`         | string | `"Tendencias 2025"`             |
-| `contenido`      | string | `"Contenido completo..."`       |
-| `fechaPublicacion` | string | `"2025-02-17T08:00:00"`      |
+| Campo             | Tipo   | Ejemplo / Descripción                    |
+|-------------------|--------|------------------------------------------|
+| `id`              | number | `1`                                      |
+| `nombres`         | string | `"Carlos"`                               |
+| `apellidos`       | string | `"Pérez Gómez"`                          |
+| `cedula`          | string | `"1234567890"`                           |
+| `fechaExpedicion` | string | `"2020-05-15"` (yyyy-MM-dd) o `null`     |
+| `inmuebles`       | array  | Lista de inmuebles asociados (objeto completo InmuebleResponse en admin) |
+
+---
+
+### ArrendatarioResponse (arrendatarios)
+
+Contenido de cada elemento en `content` (listados) o `data` (obtener/crear/actualizar). En listado admin, por ID, por cédula o por fecha de expedición, incluye `inmuebles` (listado de inmuebles en los que está en arriendo). Cada inmueble es un objeto completo **InmuebleResponse** (igual que en PropietarioResponse).
+
+| Campo             | Tipo   | Ejemplo / Descripción                    |
+|-------------------|--------|------------------------------------------|
+| `id`              | number | `1`                                      |
+| `nombres`         | string | `"María"`                                |
+| `apellidos`       | string | `"López Sánchez"`                        |
+| `cedula`          | string | `"9876543210"`                           |
+| `fechaExpedicion` | string | `"2019-03-20"` (yyyy-MM-dd) o `null`     |
+| `inmuebles`       | array  | Lista de inmuebles asociados (objeto completo InmuebleResponse) |
 
 ---
 

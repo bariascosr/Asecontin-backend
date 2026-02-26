@@ -21,7 +21,11 @@ public interface InmuebleRepository extends R2dbcRepository<Inmueble, Long>, Inm
 
 	Mono<Long> countByTipoId(Long tipoId);
 
-	Flux<Inmueble> findByPrecioBetween(BigDecimal minPrecio, BigDecimal maxPrecio);
+	Flux<Inmueble> findByPrecioVentaBetween(BigDecimal minPrecio, BigDecimal maxPrecio);
 
-	Mono<Long> countByPrecioBetween(BigDecimal minPrecio, BigDecimal maxPrecio);
+	Mono<Long> countByPrecioVentaBetween(BigDecimal minPrecio, BigDecimal maxPrecio);
+
+	Flux<Inmueble> findByPropietarioId(Long propietarioId);
+
+	Flux<Inmueble> findByPropietarioIdAndEstadoId(Long propietarioId, Long estadoId);
 }

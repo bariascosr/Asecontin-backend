@@ -31,6 +31,7 @@ public class InmuebleRepositoryImpl implements InmuebleRepositoryCustom {
 	@Override
 	public Flux<Inmueble> findByFilters(
 			Optional<Long> estadoId,
+			List<Long> estadoIdsIn,
 			Optional<Long> localidadId,
 			Optional<Long> tipoId,
 			Optional<BigDecimal> precioMin,
@@ -47,7 +48,7 @@ public class InmuebleRepositoryImpl implements InmuebleRepositoryCustom {
 			Optional<Integer> parqueaderosMax,
 			Sort sort) {
 		List<Criteria> conditions = buildCriteriaList(
-				estadoId, localidadId, tipoId, precioMin, precioMax,
+				estadoId, estadoIdsIn, localidadId, tipoId, precioMin, precioMax,
 				areaMin, areaMax, habitacionesMin, habitacionesMax,
 				banosMin, banosMax, estratoMin, estratoMax,
 				parqueaderosMin, parqueaderosMax);
@@ -60,6 +61,7 @@ public class InmuebleRepositoryImpl implements InmuebleRepositoryCustom {
 	@Override
 	public Mono<Long> countByFilters(
 			Optional<Long> estadoId,
+			List<Long> estadoIdsIn,
 			Optional<Long> localidadId,
 			Optional<Long> tipoId,
 			Optional<BigDecimal> precioMin,
@@ -75,7 +77,7 @@ public class InmuebleRepositoryImpl implements InmuebleRepositoryCustom {
 			Optional<Integer> parqueaderosMin,
 			Optional<Integer> parqueaderosMax) {
 		List<Criteria> conditions = buildCriteriaList(
-				estadoId, localidadId, tipoId, precioMin, precioMax,
+				estadoId, estadoIdsIn, localidadId, tipoId, precioMin, precioMax,
 				areaMin, areaMax, habitacionesMin, habitacionesMax,
 				banosMin, banosMax, estratoMin, estratoMax,
 				parqueaderosMin, parqueaderosMax);
@@ -87,6 +89,7 @@ public class InmuebleRepositoryImpl implements InmuebleRepositoryCustom {
 
 	private List<Criteria> buildCriteriaList(
 			Optional<Long> estadoId,
+			List<Long> estadoIdsIn,
 			Optional<Long> localidadId,
 			Optional<Long> tipoId,
 			Optional<BigDecimal> precioMin,
@@ -102,11 +105,15 @@ public class InmuebleRepositoryImpl implements InmuebleRepositoryCustom {
 			Optional<Integer> parqueaderosMin,
 			Optional<Integer> parqueaderosMax) {
 		List<Criteria> list = new ArrayList<>();
-		estadoId.ifPresent(id -> list.add(where("estadoId").is(id)));
+		if (estadoIdsIn != null && !estadoIdsIn.isEmpty()) {
+			list.add(where("estadoId").in(estadoIdsIn));
+		} else {
+			estadoId.ifPresent(id -> list.add(where("estadoId").is(id)));
+		}
 		localidadId.ifPresent(id -> list.add(where("localidadId").is(id)));
 		tipoId.ifPresent(id -> list.add(where("tipoId").is(id)));
-		precioMin.ifPresent(v -> list.add(where("precio").greaterThanOrEquals(v)));
-		precioMax.ifPresent(v -> list.add(where("precio").lessThanOrEquals(v)));
+		precioMin.ifPresent(v -> list.add(where("precioVenta").greaterThanOrEquals(v)));
+		precioMax.ifPresent(v -> list.add(where("precioVenta").lessThanOrEquals(v)));
 		areaMin.ifPresent(v -> list.add(where("areaM2").greaterThanOrEquals(v)));
 		areaMax.ifPresent(v -> list.add(where("areaM2").lessThanOrEquals(v)));
 		habitacionesMin.ifPresent(v -> list.add(where("habitaciones").greaterThanOrEquals(v)));

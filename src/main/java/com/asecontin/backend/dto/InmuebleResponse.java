@@ -7,7 +7,7 @@ public record InmuebleResponse(
 		Long id,
 		String titulo,
 		String descripcion,
-		BigDecimal precio,
+		BigDecimal precioVenta,
 		String direccion,
 		Long localidadId,
 		String localidadNombre,
@@ -15,6 +15,10 @@ public record InmuebleResponse(
 		String tipo,
 		Long estadoId,
 		String estadoNombre,
+		/** Valor de arriendo en COP. Solo en respuestas admin; null en API pública. */
+		BigDecimal valorArriendo,
+		/** ID del propietario. Solo en respuestas admin. */
+		Long propietarioId,
 		String etiquetas,
 		Integer parqueaderos,
 		Long sectorId,

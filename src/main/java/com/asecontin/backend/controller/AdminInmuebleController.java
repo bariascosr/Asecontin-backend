@@ -17,6 +17,7 @@ import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -62,6 +63,7 @@ public class AdminInmuebleController {
 		int safePage = Math.max(0, page);
 		return inmuebleService.listar(
 				Optional.ofNullable(estadoId),
+				List.of(),
 				Optional.ofNullable(localidadId),
 				Optional.ofNullable(tipoId),
 				Optional.ofNullable(precioMin),
@@ -91,7 +93,8 @@ public class AdminInmuebleController {
 
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	@ResponseStatus(HttpStatus.CREATED)
-	@Operation(summary = "Crear inmueble", description = "Requiere JWT. estadoId debe existir. Solo hay un administrador.")
+	@Operation(summary = "Crear inmueble",
+			description = "Requiere JWT. Al menos uno de precioVenta (precio de venta) o valorArriendo es obligatorio; si es arriendo no es necesario enviar precioVenta. estadoId, localidadId, tipoId obligatorios. Resto de campos opcionales. Todos los campos son editables en PUT.")
 	public Mono<ApiResponse<InmuebleResponse>> crear(@AuthenticationPrincipal String email, @Valid @RequestBody InmuebleRequest request) {
 		if (email == null || email.isBlank()) {
 			return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no identificado"));
@@ -102,11 +105,12 @@ public class AdminInmuebleController {
 	}
 
 	@PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-	@Operation(summary = "Actualizar inmueble")
+	@Operation(summary = "Actualizar inmueble", description = "Todos los campos del inmueble son modificables: titulo, descripcion, precioVenta, valorArriendo, direccion, localidadId, tipoId, estadoId, propietarioId, etiquetas, parqueaderos, sectorId, areaM2, habitaciones, banos, estrato, valorAdministracion, anoConstruccion, amoblado, piso. Al menos uno de precioVenta o valorArriendo es obligatorio.")
 	public Mono<ApiResponse<InmuebleResponse>> actualizar(@PathVariable Long id, @Valid @RequestBody InmuebleRequest request) {
 		return inmuebleService.actualizar(id, request)
 				.map(ApiResponse::success)
-				.onErrorResume(IllegalArgumentException.class, e -> Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage())));
+				.onErrorResume(IllegalArgumentException.class, e -> Mono.error(new ResponseStatusException(
+						e.getMessage() != null && e.getMessage().contains("no encontrado") ? HttpStatus.NOT_FOUND : HttpStatus.BAD_REQUEST, e.getMessage())));
 	}
 
 	@DeleteMapping("/{id}")

@@ -19,7 +19,10 @@ public class Inmueble {
 
 	private String titulo;
 	private String descripcion;
-	private BigDecimal precio;
+
+	@Column("precio_venta")
+	private BigDecimal precioVenta;
+
 	private String direccion;
 
 	@Column("localidad_id")
@@ -30,6 +33,12 @@ public class Inmueble {
 
 	@Column("estado_id")
 	private Long estadoId;
+
+	@Column("valor_arriendo")
+	private BigDecimal valorArriendo;
+
+	@Column("propietario_id")
+	private Long propietarioId;
 
 	private String etiquetas;
 
@@ -86,12 +95,12 @@ public class Inmueble {
 		this.descripcion = descripcion;
 	}
 
-	public BigDecimal getPrecio() {
-		return precio;
+	public BigDecimal getPrecioVenta() {
+		return precioVenta;
 	}
 
-	public void setPrecio(BigDecimal precio) {
-		this.precio = precio;
+	public void setPrecioVenta(BigDecimal precioVenta) {
+		this.precioVenta = precioVenta;
 	}
 
 	public String getDireccion() {
@@ -124,6 +133,22 @@ public class Inmueble {
 
 	public void setEstadoId(Long estadoId) {
 		this.estadoId = estadoId;
+	}
+
+	public BigDecimal getValorArriendo() {
+		return valorArriendo;
+	}
+
+	public void setValorArriendo(BigDecimal valorArriendo) {
+		this.valorArriendo = valorArriendo;
+	}
+
+	public Long getPropietarioId() {
+		return propietarioId;
+	}
+
+	public void setPropietarioId(Long propietarioId) {
+		this.propietarioId = propietarioId;
 	}
 
 	public String getEtiquetas() {

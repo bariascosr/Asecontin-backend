@@ -25,7 +25,6 @@ Desarrollar una plataforma web (Asecontin) que permita a los usuarios **buscar, 
 - Idioma inicial: **Español**.
 - Roles: **Administrador** (único por ahora).
 - Panel administrativo para gestión de inmuebles.
-- Blog o sección de noticias inmobiliarias (opcional).
 
 ---
 
@@ -70,20 +69,32 @@ Desarrollar una plataforma web (Asecontin) que permita a los usuarios **buscar, 
 
 - **Inmueble**
   - id_inmueble (PK)
-  - título
-  - descripción
-  - precio (COP)
-  - dirección
-  - ciudad
-  - tipo (casa, apartamento)
-  - estado_id (FK → Estado)
-  - etiquetas
-  - fecha_creación
-  - fecha_actualización
+  - título, descripción, dirección
+  - **precio_venta** (COP, nullable): precio de venta. **valor_arriendo** (COP, nullable): canon de arriendo. Al menos uno obligatorio (CHECK en BD). Si es arriendo no se exige precio_venta.
+  - localidad_id, tipo_id, estado_id (FK)
+  - propietario_id (FK, opcional)
+  - etiquetas, parqueaderos, sector_id, area_m2, habitaciones, banos, estrato, valor_administracion, ano_construccion, amoblado, piso
+  - fecha_creacion, fecha_actualizacion
+
+- **Propietario**
+  - id_propietario (PK)
+  - nombres
+  - apellidos
+  - cedula (única)
+  - fecha_expedicion (fecha de expedición del documento)
+  - Relación: **1 a muchos** con Inmueble (un propietario puede ser dueño de varios inmuebles).
+
+- **Arrendatario**
+  - id_arrendatario (PK)
+  - nombres
+  - apellidos
+  - cedula
+  - fecha_expedicion (fecha de expedición del documento)
+  - Relación: **N a M** con Inmueble (tabla enlace `inmueble_arrendatario`). Un arrendatario puede estar asociado a uno o varios inmuebles en arriendo.
 
 - **Estado**
   - id_estado (PK)
-  - nombre_estado (ej. disponible, vendido, rentado)
+  - nombre_estado (ej. En venta, Disponible para arriendo, Arrendado, Vendido, Reservado). "Arrendado" permite al administrador y al propietario identificar inmuebles en arriendo y el valor; el cliente filtra por estado para ver oferta en venta o en arriendo.
 
 - **Imagen**
   - id_imagen (PK)
@@ -95,21 +106,18 @@ Desarrollar una plataforma web (Asecontin) que permita a los usuarios **buscar, 
   - inmueble_id (FK → Inmueble)
   - url_video
 
-- **Blog/Noticias** (opcional)
-  - id_articulo (PK)
-  - título
-  - contenido
-  - fecha_publicación
-
 ---
 
 ## 🔗 Relaciones
 
 - **Usuario → Inmueble**: solo hay un administrador; gestiona los inmuebles desde el panel (no se guarda en BD quién creó cada inmueble).  
 - **Inmueble → Estado**: cada inmueble *tiene* un estado.  
+- **Propietario → Inmueble**: **1 a muchos**. Un propietario puede ser dueño de varios inmuebles; en `inmueble` se guarda `propietario_id` (opcional).  
+- **Arrendatario ↔ Inmueble**: **N a M** mediante tabla `inmueble_arrendatario` (inmueble_id, arrendatario_id). Un arrendatario puede estar asociado a uno o varios inmuebles en arriendo.  
 - **Inmueble → Imagen**: un inmueble *tiene muchas* imágenes.  
-- **Inmueble → Video**: un inmueble *tiene muchos* videos.  
-- **Blog**: independiente, no relacionado directamente con inmuebles (sirve para contenido adicional).  
+- **Inmueble → Video**: un inmueble *tiene muchos* videos.
+
+**Nota:** El campo `valor_arriendo` de Inmueble es interno; no debe exponerse en la API pública (sí en panel admin). Las consultas por cédula y fecha de expedición para Propietarios y Arrendatarios deben devolver el listado de inmuebles asociados incluyendo el **precio de arrendamiento** (`valor_arriendo`) cuando aplique.  
 
 ---
 
@@ -134,7 +142,7 @@ CREATE TABLE imb.usuario (
     rol VARCHAR(50) NOT NULL
 );
 
--- Estado del inmueble (disponible, vendido, rentado)
+-- Estado del inmueble (En venta, Disponible para arriendo, Arrendado, Vendido, Reservado)
 CREATE TABLE imb.estado (
     id_estado SERIAL PRIMARY KEY,
     nombre_estado VARCHAR(50) NOT NULL
@@ -166,16 +174,37 @@ CREATE TABLE imb.sector (
     nombre VARCHAR(50) NOT NULL UNIQUE
 );
 
--- Inmueble (localidad_id referencia imb.localidad; sector_id opcional)
+-- Propietarios (1 propietario → muchos inmuebles)
+CREATE TABLE imb.propietario (
+    id_propietario SERIAL PRIMARY KEY,
+    nombres VARCHAR(100) NOT NULL,
+    apellidos VARCHAR(100) NOT NULL,
+    cedula VARCHAR(20) NOT NULL UNIQUE,
+    fecha_expedicion DATE NULL
+);
+
+-- Arrendatarios (relación N:M con inmuebles vía inmueble_arrendatario)
+CREATE TABLE imb.arrendatario (
+    id_arrendatario SERIAL PRIMARY KEY,
+    nombres VARCHAR(100) NOT NULL,
+    apellidos VARCHAR(100) NOT NULL,
+    cedula VARCHAR(20) NOT NULL,
+    fecha_expedicion DATE NULL,
+    telefono VARCHAR(20) NULL
+);
+
+-- Inmueble: precio_venta (venta) y valor_arriendo (arriendo); al menos uno debe informarse por inmueble
 CREATE TABLE imb.inmueble (
     id_inmueble SERIAL PRIMARY KEY,
     titulo VARCHAR(150) NOT NULL,
     descripcion TEXT,
-    precio NUMERIC(15,2) NOT NULL,
+    precio_venta NUMERIC(15,2) NULL,
     direccion VARCHAR(255) NOT NULL,
     localidad_id INT NOT NULL REFERENCES imb.localidad(id_localidad),
     tipo_id INT NOT NULL REFERENCES imb.tipo_inmueble(id_tipo),
     estado_id INT REFERENCES imb.estado(id_estado),
+    valor_arriendo NUMERIC(15,2) NULL,
+    propietario_id INT NULL REFERENCES imb.propietario(id_propietario) ON DELETE SET NULL,
     etiquetas VARCHAR(100),
     parqueaderos INT NOT NULL DEFAULT 0,
     sector_id INT REFERENCES imb.sector(id_sector),
@@ -188,8 +217,14 @@ CREATE TABLE imb.inmueble (
     amoblado BOOLEAN NOT NULL DEFAULT false,
     piso INT,
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_inmueble_precio_o_arriendo CHECK (
+        (precio_venta IS NOT NULL AND precio_venta > 0) OR (valor_arriendo IS NOT NULL AND valor_arriendo > 0)
+    )
 );
+
+-- Índice para consultas de inmuebles por propietario
+CREATE INDEX idx_inmueble_propietario ON imb.inmueble(propietario_id);
 
 -- Imagen (url_imagen: ruta en disco o URL externa; es_principal: una por inmueble)
 CREATE TABLE imb.imagen (
@@ -206,14 +241,6 @@ CREATE TABLE imb.video (
     url_video VARCHAR(255) NOT NULL
 );
 
--- Blog / Noticias
-CREATE TABLE imb.blog (
-    id_articulo SERIAL PRIMARY KEY,
-    titulo VARCHAR(150) NOT NULL,
-    contenido TEXT NOT NULL,
-    fecha_publicacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
 -- Contenido institucional (Acerca de nosotros: misión, visión, términos, política de datos, etc.)
 -- Una sola fila por instalación; se puede ampliar con más columnas si se necesitan más secciones.
 CREATE TABLE imb.configuracion_inmobiliaria (
@@ -227,13 +254,30 @@ CREATE TABLE imb.configuracion_inmobiliaria (
     fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Enlace inmueble – arrendatario (N:M: un arrendatario puede estar en uno o varios inmuebles)
+CREATE TABLE imb.inmueble_arrendatario (
+    inmueble_id INT NOT NULL REFERENCES imb.inmueble(id_inmueble) ON DELETE CASCADE,
+    arrendatario_id INT NOT NULL REFERENCES imb.arrendatario(id_arrendatario) ON DELETE CASCADE,
+    PRIMARY KEY (inmueble_id, arrendatario_id)
+);
+
+CREATE INDEX idx_inmueble_arrendatario_arrendatario ON imb.inmueble_arrendatario(arrendatario_id);
+
+-- Índices para consultas por cédula y fecha de expedición (propietarios y arrendatarios)
+CREATE INDEX idx_propietario_cedula ON imb.propietario(cedula);
+CREATE INDEX idx_propietario_fecha_expedicion ON imb.propietario(fecha_expedicion);
+CREATE INDEX idx_arrendatario_cedula ON imb.arrendatario(cedula);
+CREATE INDEX idx_arrendatario_fecha_expedicion ON imb.arrendatario(fecha_expedicion);
+
 -- ========== DATOS INICIALES ==========
 
--- Estados de inmueble
+-- Estados de inmueble (cliente: filtrar por estadoId en GET /api/public/inmuebles; "Arrendado" útil para admin y propietario)
 INSERT INTO imb.estado (nombre_estado) VALUES
-    ('Disponible'),
+    ('En venta'),
+    ('Disponible para arriendo'),
+    ('Arrendado'),
     ('Vendido'),
-    ('Rentado');
+    ('Reservado');
 
 -- Tipos de inmueble
 INSERT INTO imb.tipo_inmueble (nombre) VALUES
@@ -319,12 +363,16 @@ El script anterior crea la base desde cero e incluye:
 
 - **Tabla `imb.localidad`**: localidades por ciudad (por ahora las 20 de Bogotá). Incluye INSERT; `ciudad_id` referencia `imb.ciudad`. Permite ampliar a otras ciudades después.
 - **Tabla `imb.sector`**: creación e INSERT de los sectores (Oriente, Occidente, Norte, Sur, Centro, Noroccidente, Nororiente, Suroriente, Suroccidente). No se usan ALTER para esta tabla.
-- **Tabla `imb.inmueble`**: creación con todos los campos desde el inicio (título, descripción, precio, dirección, localidad_id, tipo_id, estado_id, etiquetas, parqueaderos, sector_id, area_m2, habitaciones, banos, estrato, valor_administracion, ano_construccion, amoblado, piso, fecha_creacion, fecha_actualizacion). La columna `localidad_id` referencia `imb.localidad(id_localidad)`. No se usan ALTER para añadir estos campos.
+- **Tablas `imb.propietario` y `imb.arrendatario`**: propietarios (nombres, apellidos, cedula, fecha_expedicion) y arrendatarios (nombres, apellidos, cedula, fecha_expedicion, **telefono** opcional para recordatorios por WhatsApp); con índices en cedula y fecha_expedicion para consultas.
+- **Tabla `imb.inmueble`**: creación con todos los campos desde el inicio. **precio_venta** (precio de venta en COP, nullable) y **valor_arriendo** (canon de arriendo, nullable); al menos uno debe estar informado (CHECK). **propietario_id** (FK opcional). Demás campos: título, descripción, dirección, localidad_id, tipo_id, estado_id, etiquetas, parqueaderos, sector_id, area_m2, habitaciones, banos, estrato, valor_administracion, ano_construccion, amoblado, piso, fecha_creacion, fecha_actualizacion. CRUD permite modificar todos los campos.
+- **Tabla `imb.inmueble_arrendatario`**: enlace N:M entre inmueble y arrendatario (un arrendatario puede estar en uno o varios inmuebles).
 - **Tabla `imb.configuracion_inmobiliaria`**: contenido para la sección "Acerca de nosotros" (misión, visión, términos y condiciones, política de tratamiento de datos, descripción). Una sola fila; incluye INSERT con valores de ejemplo.
 
-**Si la BD ya existe** y fue creada con una versión anterior (sin tabla `sector` ni los campos nuevos de inmueble), puede ejecutar el script de actualización `scripts/sectores-y-campos-inmueble.sql`, que usa ALTER para añadir lo que falte.
+Si se crea la BD con este script, **no es necesario ejecutar ALTER ni scripts adicionales** para propietarios, arrendatarios ni valor_arriendo.
 
+**Si la BD ya existe** y fue creada con una versión anterior (sin tabla `sector`, sin propietarios/arrendatarios ni valor_arriendo), puede ejecutar los scripts de actualización correspondientes (`scripts/sectores-y-campos-inmueble.sql` y/o `scripts/migration-propietarios-arrendatarios-valor-arriendo.sql`), que usan ALTER y CREATE TABLE IF NOT EXISTS para añadir lo que falte. Para añadir el campo **telefono** en `imb.arrendatario` (recordatorios WhatsApp): `scripts/agregar-telefono-arrendatario.sql`.
 
+**Recordatorio de pago (día 5 del mes):** Un job programado envía por WhatsApp un recordatorio a los arrendatarios con teléfono registrado. Para mensajes iniciados por la empresa, WhatsApp exige usar una **plantilla aprobada**. Configurar `app.whatsapp.template-recordatorio-pago` con el nombre de la plantilla creada en Meta Business Manager (WhatsApp > Plantillas de mensajes). El body de la plantilla debe tener exactamente tres variables en este orden: {{1}} nombre del arrendatario, {{2}} total a pagar (ej. $1.500.000), {{3}} monto del recargo 5% (ej. $75.000). Si la plantilla no está configurada, se intenta enviar texto libre (solo válido si el usuario escribió en las últimas 24 h).
 
 
 # 📑 Plan de Creación - Asecontin
@@ -379,16 +427,12 @@ El script anterior crea la base desde cero e incluye:
    - Guardar referencia en BD.
    - CRUD de videos por inmueble.
 
-7. **Módulo de Blog/Noticias (opcional)**
-   - CRUD de artículos.
-   - Endpoint público para visualización.
-
-8. **API Pública**
+7. **API Pública**
    - Endpoints para búsqueda de inmuebles.
    - Endpoints para filtros.
    - Endpoint para contacto con agente.
 
-9. **Pruebas**
+8. **Pruebas**
    - Unitarias con JUnit.
    - Integración con Spring Test.
 
@@ -405,7 +449,6 @@ El script anterior crea la base desde cero e incluye:
    - Formularios para crear/editar inmuebles.
    - Gestión de estados.
    - Subida de imágenes y videos.
-   - Gestión de artículos del blog (opcional).
 
 3. **Página Pública**
    - Home con buscador y filtros.
@@ -460,7 +503,6 @@ El script anterior crea la base desde cero e incluye:
 | Backend      | CRUD Imágenes                 | ✅ |
 | Backend      | CRUD Videos                   | ✅ |
 | Backend      | API Pública                   | ✅ |
-| Backend      | Blog/Noticias (opcional)      | ✅ |
 | Backend      | Mejoras de calidad (formato API, logs, límites, excepciones) | ✅ |
 | Frontend     | Login Administrador           | ⬜ |
 | Frontend     | Dashboard Inmuebles           | ⬜ |
@@ -470,7 +512,6 @@ El script anterior crea la base desde cero e incluye:
 | Frontend     | Detalle Inmueble              | ⬜ |
 | Frontend     | Mapa Interactivo              | ⬜ |
 | Frontend     | Contacto Agente               | ⬜ |
-| Frontend     | Blog/Noticias (opcional)      | ⬜ |
 | Infraestructura | Despliegue en GCP          | ⬜ |
 
 ---
@@ -533,13 +574,16 @@ Los siguientes endpoints devuelven una **página** de resultados:
 | GET | `/api/admin/inmuebles` | `page`, `size` (+ filtros opcionales) |
 | GET | `/api/public/inmuebles` | `page`, `size` (+ filtros opcionales) |
 | GET | `/api/admin/configuracion-inmobiliaria` | `page`, `size` |
-| GET | `/api/admin/articulos` | `page`, `size` |
-| GET | `/api/public/articulos` | `page`, `size` |
+| GET | `/api/admin/propietarios` | `page`, `size` (opcional: `cedula` o `fechaExpedicion` para filtrar con inmuebles) |
+| GET | `/api/admin/arrendatarios` | `page`, `size` (opcional: `cedula` o `fechaExpedicion` para filtrar con inmuebles) |
 
 - **Parámetros:** `page` (número de página, 0-based; por defecto `0`), `size` (tamaño de página; por defecto `20`, máximo `100`).
 - **Filtros de listado de inmuebles** (`GET /api/public/inmuebles` y `GET /api/admin/inmuebles`): todos opcionales y combinables — `estadoId`, `localidadId`, `tipoId`, `precioMin`/`precioMax`, `areaMin`/`areaMax` (m²), `habitacionesMin`/`habitacionesMax`, `banosMin`/`banosMax`, `estratoMin`/`estratoMax`, `parqueaderosMin`/`parqueaderosMax`.
+- **Listado público de inmuebles:** `GET /api/public/inmuebles` **solo devuelve** inmuebles en estado **"En venta"** o **"Disponible para arriendo"** (el cliente no ve Arrendado, Vendido ni Reservado). El parámetro opcional `estadoId` permite filtrar entre esos dos (ej. solo en venta o solo disponibles para arriendo).
+- **Estados (catálogo público):** `GET /api/public/estados` devuelve todos los estados sin JWT. "Arrendado" sirve al admin y al propietario para ver qué inmuebles tiene arrendados y por qué valor.
 - **Localidades:** `GET /api/public/localidades` devuelve todas las localidades (o solo las de una ciudad con `ciudadId`). Por ahora principalmente Bogotá (20 localidades). CRUD en `/api/admin/localidades` (JWT). Cada localidad tiene `ciudadId`; al crear/actualizar la ciudad debe existir y no se puede repetir el mismo nombre en la misma ciudad.
 - **Configuración institucional (Acerca de nosotros):** `GET /api/public/configuracion-inmobiliaria` devuelve la configuración actual (misión, visión, términos, política de datos, descripción) sin autenticación. El CRUD (listar, crear, actualizar, eliminar) está en `/api/admin/configuracion-inmobiliaria` y requiere JWT.
+- **Propietarios y arrendatarios:** CRUD completo en `/api/admin/propietarios` y `/api/admin/arrendatarios` (JWT). El listado admin de propietarios (`GET /api/admin/propietarios`) y el listado admin de arrendatarios (`GET /api/admin/arrendatarios`) devuelven **toda la información** de cada propietario/arrendatario y de los **inmuebles asociados** (información completa de cada inmueble, mismo formato que InmuebleResponse). Al **crear** es **obligatorio** enviar `inmuebleIds` en ambos. Consultas por `cedula` o `fechaExpedicion` devuelven también los inmuebles con información completa. Consulta **pública** (sin JWT) requiere **cédula y fecha de expedición** (ambos obligatorios): `GET /api/public/propietarios/inmuebles?cedula=XXX&fechaExpedicion=yyyy-MM-dd` devuelve **todos los inmuebles asociados** a ese propietario (información completa); `GET /api/public/arrendatarios/inmuebles?cedula=XXX&fechaExpedicion=yyyy-MM-dd` devuelve **solo los inmuebles en estado "Arrendado"** asociados a ese arrendatario (información completa de cada inmueble, incl. valorArriendo). Asociar arrendatario a inmueble: `POST /api/admin/arrendatarios/{arrendatarioId}/inmuebles/{inmuebleId}`; desasociar: `DELETE` mismo path.
 - **Estructura de `data` en listados:**
 
 ```json

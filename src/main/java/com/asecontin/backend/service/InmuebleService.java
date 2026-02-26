@@ -68,6 +68,7 @@ public class InmuebleService {
 
 	public Mono<PageResponse<InmuebleResponse>> listar(
 			Optional<Long> estadoId,
+			List<Long> estadoIdsIn,
 			Optional<Long> localidadId,
 			Optional<Long> tipoId,
 			Optional<BigDecimal> precioMin,
@@ -85,13 +86,14 @@ public class InmuebleService {
 			int page,
 			int size) {
 		Sort sort = Sort.by(Sort.Direction.DESC, "fechaCreacion");
+		List<Long> safeEstadoIdsIn = estadoIdsIn != null ? estadoIdsIn : List.of();
 		Flux<Inmueble> flux = inmuebleRepository.findByFilters(
-				estadoId, localidadId, tipoId, precioMin, precioMax,
+				estadoId, safeEstadoIdsIn, localidadId, tipoId, precioMin, precioMax,
 				areaMin, areaMax, habitacionesMin, habitacionesMax,
 				banosMin, banosMax, estratoMin, estratoMax,
 				parqueaderosMin, parqueaderosMax, sort);
 		Mono<Long> countMono = inmuebleRepository.countByFilters(
-				estadoId, localidadId, tipoId, precioMin, precioMax,
+				estadoId, safeEstadoIdsIn, localidadId, tipoId, precioMin, precioMax,
 				areaMin, areaMax, habitacionesMin, habitacionesMax,
 				banosMin, banosMax, estratoMin, estratoMax,
 				parqueaderosMin, parqueaderosMax);
@@ -101,6 +103,51 @@ public class InmuebleService {
 				.flatMap(this::toResponse)
 				.collectList();
 		return Mono.zip(content, countMono).map(t -> PageResponse.of(t.getT1(), t.getT2(), page, size));
+	}
+
+	/**
+	 * Listado para API pública: solo inmuebles "En venta" o "Disponible para arriendo". Sin valorArriendo ni propietarioId.
+	 */
+	public Mono<PageResponse<InmuebleResponse>> listarPublico(
+			Optional<Long> estadoId,
+			Optional<Long> localidadId,
+			Optional<Long> tipoId,
+			Optional<BigDecimal> precioMin,
+			Optional<BigDecimal> precioMax,
+			Optional<BigDecimal> areaMin,
+			Optional<BigDecimal> areaMax,
+			Optional<Integer> habitacionesMin,
+			Optional<Integer> habitacionesMax,
+			Optional<Integer> banosMin,
+			Optional<Integer> banosMax,
+			Optional<Integer> estratoMin,
+			Optional<Integer> estratoMax,
+			Optional<Integer> parqueaderosMin,
+			Optional<Integer> parqueaderosMax,
+			int page,
+			int size) {
+		Mono<List<Long>> allowedEstadoIdsMono = estadoRepository
+				.findByNombreEstadoIgnoreCaseIn(List.of("En venta", "Disponible para arriendo"))
+				.map(Estado::getIdEstado)
+				.collectList();
+		Mono<List<Long>> estadoIdsInMono = allowedEstadoIdsMono.map(allowedIds -> {
+			if (allowedIds.isEmpty()) return List.<Long>of();
+			if (estadoId.isPresent() && allowedIds.contains(estadoId.get())) return List.of(estadoId.get());
+			return allowedIds;
+		});
+		return estadoIdsInMono.flatMap(estadoIdsIn ->
+				listar(Optional.empty(), estadoIdsIn, localidadId, tipoId, precioMin, precioMax, areaMin, areaMax,
+						habitacionesMin, habitacionesMax, banosMin, banosMax, estratoMin, estratoMax,
+						parqueaderosMin, parqueaderosMax, page, size))
+				.map(p -> PageResponse.of(
+						p.content().stream()
+								.map(r -> new InmuebleResponse(r.id(), r.titulo(), r.descripcion(), r.precioVenta(), r.direccion(),
+										r.localidadId(), r.localidadNombre(), r.ciudadNombre(), r.tipo(), r.estadoId(), r.estadoNombre(),
+										null, null, r.etiquetas(), r.parqueaderos(), r.sectorId(), r.sectorNombre(), r.areaM2(),
+										r.habitaciones(), r.banos(), r.estrato(), r.valorAdministracion(), r.anoConstruccion(),
+										r.amoblado(), r.piso(), r.fechaCreacion(), r.fechaActualizacion(), r.imagenPrincipal()))
+								.toList(),
+						p.totalElements(), p.number(), p.size()));
 	}
 
 	public Mono<InmuebleResponse> obtenerPorId(Long id) {
@@ -132,7 +179,7 @@ public class InmuebleService {
 							.collectList();
 					return Mono.zip(base, imagenes, videos)
 							.map(t -> new InmuebleDetallePublicoResponse(
-									t.getT1().id(), t.getT1().titulo(), t.getT1().descripcion(), t.getT1().precio(),
+									t.getT1().id(), t.getT1().titulo(), t.getT1().descripcion(), t.getT1().precioVenta(),
 									t.getT1().direccion(), t.getT1().localidadId(), t.getT1().localidadNombre(), t.getT1().ciudadNombre(),
 									t.getT1().tipo(), t.getT1().estadoId(),
 									t.getT1().estadoNombre(), t.getT1().etiquetas(),
@@ -146,6 +193,11 @@ public class InmuebleService {
 
 	public Mono<InmuebleResponse> crear(InmuebleRequest request) {
 		log.debug("Creando inmueble: titulo={}", request.titulo());
+		boolean tienePrecioVenta = request.precioVenta() != null && request.precioVenta().compareTo(BigDecimal.ZERO) > 0;
+		boolean tieneValorArriendo = request.valorArriendo() != null && request.valorArriendo().compareTo(BigDecimal.ZERO) > 0;
+		if (!tienePrecioVenta && !tieneValorArriendo) {
+			return Mono.error(new IllegalArgumentException("Debe indicar precio de venta (precioVenta) o valor de arriendo (valorArriendo); al menos uno es obligatorio."));
+		}
 		return estadoRepository.findById(request.estadoId())
 				.switchIfEmpty(Mono.defer(() -> {
 					log.warn("Crear inmueble: estado no encontrado id={}", request.estadoId());
@@ -212,13 +264,20 @@ public class InmuebleService {
 							return Mono.error(new IllegalArgumentException("Estado no encontrado"));
 						}))
 						.flatMap(estado -> {
+							boolean tienePrecioVentaUpd = request.precioVenta() != null && request.precioVenta().compareTo(BigDecimal.ZERO) > 0;
+							boolean tieneValorArriendoUpd = request.valorArriendo() != null && request.valorArriendo().compareTo(BigDecimal.ZERO) > 0;
+							if (!tienePrecioVentaUpd && !tieneValorArriendoUpd) {
+								return Mono.<InmuebleResponse>error(new IllegalArgumentException("Debe indicar precio de venta (precioVenta) o valor de arriendo (valorArriendo); al menos uno es obligatorio."));
+							}
 							existing.setTitulo(request.titulo().trim());
 							existing.setDescripcion(request.descripcion() != null ? request.descripcion().trim() : null);
-							existing.setPrecio(request.precio());
+							existing.setPrecioVenta(request.precioVenta());
 							existing.setDireccion(request.direccion().trim());
 							existing.setLocalidadId(request.localidadId());
 							existing.setTipoId(request.tipoId());
 							existing.setEstadoId(request.estadoId());
+							existing.setValorArriendo(request.valorArriendo());
+							existing.setPropietarioId(request.propietarioId());
 							existing.setEtiquetas(request.etiquetas() != null ? request.etiquetas().trim() : null);
 							existing.setParqueaderos(request.parqueaderos() != null ? request.parqueaderos() : 0);
 							existing.setSectorId(request.sectorId());
@@ -250,11 +309,13 @@ public class InmuebleService {
 		Inmueble i = new Inmueble();
 		i.setTitulo(r.titulo().trim());
 		i.setDescripcion(r.descripcion() != null ? r.descripcion().trim() : null);
-		i.setPrecio(r.precio());
+		i.setPrecioVenta(r.precioVenta());
 		i.setDireccion(r.direccion().trim());
 		i.setLocalidadId(r.localidadId());
 		i.setTipoId(r.tipoId());
 		i.setEstadoId(r.estadoId());
+		i.setValorArriendo(r.valorArriendo());
+		i.setPropietarioId(r.propietarioId());
 		i.setEtiquetas(r.etiquetas() != null ? r.etiquetas().trim() : null);
 		i.setParqueaderos(r.parqueaderos() != null ? r.parqueaderos() : 0);
 		i.setSectorId(r.sectorId());
@@ -267,6 +328,11 @@ public class InmuebleService {
 		i.setAmoblado(r.amoblado() != null ? r.amoblado() : false);
 		i.setPiso(r.piso());
 		return i;
+	}
+
+	/** Convierte entidad Inmueble a InmuebleResponse (para incluir en respuestas de propietario/arrendatario). */
+	public Mono<InmuebleResponse> toResponseFromInmueble(Inmueble i) {
+		return toResponse(i);
 	}
 
 	private Mono<InmuebleResponse> toResponse(Inmueble i) {
@@ -296,7 +362,7 @@ public class InmuebleService {
 						i.getIdInmueble(),
 						i.getTitulo(),
 						i.getDescripcion(),
-						i.getPrecio(),
+						i.getPrecioVenta(),
 						i.getDireccion(),
 						i.getLocalidadId(),
 						t.getT5(),
@@ -304,6 +370,8 @@ public class InmuebleService {
 						t.getT2(),
 						i.getEstadoId(),
 						t.getT1(),
+						i.getValorArriendo(),
+						i.getPropietarioId(),
 						i.getEtiquetas(),
 						i.getParqueaderos() != null ? i.getParqueaderos() : 0,
 						i.getSectorId(),

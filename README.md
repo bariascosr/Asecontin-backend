@@ -1,6 +1,6 @@
 # Asecontin – Backend
 
-API REST del backend de Asecontin: gestión de inmuebles, estados, imágenes, videos, blog y autenticación JWT para el panel de administración.
+API REST del backend de Asecontin: gestión de inmuebles, estados, propietarios, arrendatarios, imágenes, videos y autenticación JWT para el panel de administración.
 
 ## Requisitos
 
@@ -43,7 +43,7 @@ Los endpoints protegidos requieren JWT: en Swagger UI, usar **Authorize** e intr
 
 - **Éxito:** `{ "success": true, "data": ... }` (códigos 200/201).
 - **Error:** `{ "success": false, "message": "...", "code": "..." }` (4xx/5xx). En validación puede incluir `errors` por campo.
-- **Listados paginados:** Todos los listados (estados, inmuebles, artículos) son paginados. `data` es un objeto: `content` (array de la página), `totalElements`, `totalPages`, `number` (página 0-based), `size`, `first`, `last`. Query params: `page` (default 0), `size` (default 20, max 100).
+- **Listados paginados:** Todos los listados (estados, inmuebles, propietarios, arrendatarios, configuración) son paginados. `data` es un objeto: `content` (array de la página), `totalElements`, `totalPages`, `number` (página 0-based), `size`, `first`, `last`. Query params: `page` (default 0), `size` (default 20, max 100).
 
 Ejemplos de **curl** para cada endpoint: **CURL_EJEMPLOS.md**. Más detalle en **INSTRUCCIONES.md**, sección *API REST – Convenciones y paginación*.
 

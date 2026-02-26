@@ -16,7 +16,7 @@ public class OpenApiConfig {
 				.info(new Info()
 						.title("API Plataforma Inmobiliaria")
 						.version("1.0")
-						.description("API REST del backend: auth, administración de inmuebles, estados, imágenes, videos, blog y endpoints públicos. "
+						.description("API REST del backend: auth, administración de inmuebles, estados, imágenes, videos y endpoints públicos. "
 								+ "Las respuestas exitosas usan el formato estándar { \"success\": true, \"data\": ... }. "
 								+ "Los errores 4xx/5xx devuelven { \"success\": false, \"message\": \"...\", \"code\": \"...\" }."))
 				.components(new Components()

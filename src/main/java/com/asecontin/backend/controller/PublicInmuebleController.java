@@ -56,7 +56,7 @@ public class PublicInmuebleController {
 			@RequestParam(defaultValue = "20") int size) {
 		int safeSize = Math.min(Math.max(1, size), MAX_PAGE_SIZE);
 		int safePage = Math.max(0, page);
-		return inmuebleService.listar(
+		return inmuebleService.listarPublico(
 				Optional.ofNullable(estadoId),
 				Optional.ofNullable(localidadId),
 				Optional.ofNullable(tipoId),

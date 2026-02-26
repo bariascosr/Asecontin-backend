@@ -11,10 +11,10 @@ public record InmuebleRequest(
 		@Size(max = 5000)
 		String descripcion,
 
-		@NotNull(message = "El precio es obligatorio")
-		@DecimalMin(value = "0", inclusive = false, message = "El precio debe ser mayor que 0")
+		/** Precio de venta en COP. Opcional si se informa valorArriendo (arriendo). Al menos uno de precioVenta o valorArriendo es obligatorio. */
+		@DecimalMin(value = "0", inclusive = false, message = "El precio de venta debe ser mayor que 0")
 		@Digits(integer = 12, fraction = 2)
-		BigDecimal precio,
+		BigDecimal precioVenta,
 
 		@NotBlank(message = "La dirección es obligatoria")
 		@Size(max = 255)
@@ -28,6 +28,14 @@ public record InmuebleRequest(
 
 		@NotNull(message = "El estado del inmueble es obligatorio")
 		Long estadoId,
+
+		/** Valor de arriendo en COP. Opcional si se informa precioVenta (venta). Al menos uno de precioVenta o valorArriendo es obligatorio. No se expone en API pública. */
+		@DecimalMin("0")
+		@Digits(integer = 12, fraction = 2)
+		BigDecimal valorArriendo,
+
+		/** ID del propietario (opcional). */
+		Long propietarioId,
 
 		@Size(max = 100)
 		String etiquetas,

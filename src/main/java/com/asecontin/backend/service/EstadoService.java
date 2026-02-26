@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -30,6 +31,11 @@ public class EstadoService {
 		Mono<List<EstadoResponse>> content = flux.skip((long) page * size).take(size).collectList();
 		Mono<Long> total = estadoRepository.count();
 		return Mono.zip(content, total).map(t -> PageResponse.of(t.getT1(), t.getT2(), page, size));
+	}
+
+	/** Lista todos los estados ordenados por nombre (para catálogo público sin paginación). */
+	public Flux<EstadoResponse> listarTodos() {
+		return estadoRepository.findAll(Sort.by("nombreEstado")).map(this::toResponse);
 	}
 
 	public Mono<EstadoResponse> obtenerPorId(Long id) {

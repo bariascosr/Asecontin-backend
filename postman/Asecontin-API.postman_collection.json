@@ -170,6 +170,19 @@
 			]
 		},
 		{
+			"name": "Público - Estados",
+			"item": [
+				{
+					"name": "Listar estados de inmueble",
+					"request": {
+						"method": "GET",
+						"url": "{{baseUrl}}/api/public/estados",
+						"description": "En venta, Disponible para arriendo, Arrendado, Vendido, Reservado. Para filtro estadoId en GET /api/public/inmuebles."
+					}
+				}
+			]
+		},
+		{
 			"name": "Público - Sectores",
 			"item": [
 				{
@@ -217,33 +230,6 @@
 			]
 		},
 		{
-			"name": "Público - Artículos",
-			"item": [
-				{
-					"name": "Listar artículos",
-					"request": {
-						"method": "GET",
-						"url": {
-							"raw": "{{baseUrl}}/api/public/articulos?page=0&size=20",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "public", "articulos"],
-							"query": [
-								{ "key": "page", "value": "0" },
-								{ "key": "size", "value": "20" }
-							]
-						}
-					}
-				},
-				{
-					"name": "Ver artículo",
-					"request": {
-						"method": "GET",
-						"url": "{{baseUrl}}/api/public/articulos/1"
-					}
-				}
-			]
-		},
-		{
 			"name": "Público - Contacto",
 			"item": [
 				{
@@ -257,6 +243,48 @@
 						},
 						"url": "{{baseUrl}}/api/public/contacto",
 						"description": "Responde 202 Accepted. inmuebleId es opcional."
+					}
+				}
+			]
+		},
+		{
+			"name": "Público - Propietarios",
+			"item": [
+				{
+					"name": "Inmuebles del propietario (cédula + fecha expedición)",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/public/propietarios/inmuebles?cedula=1234567890&fechaExpedicion=2020-05-15",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "public", "propietarios", "inmuebles"],
+							"query": [
+								{ "key": "cedula", "value": "1234567890", "description": "Obligatorio" },
+								{ "key": "fechaExpedicion", "value": "2020-05-15", "description": "Obligatorio (yyyy-MM-dd)" }
+							]
+						},
+						"description": "Consulta pública. Requiere cedula y fechaExpedicion. Devuelve datos del propietario y lista de inmuebles con valorArriendo."
+					}
+				}
+			]
+		},
+		{
+			"name": "Público - Arrendatarios",
+			"item": [
+				{
+					"name": "Inmuebles del arrendatario (cédula + fecha expedición)",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/public/arrendatarios/inmuebles?cedula=9876543210&fechaExpedicion=2019-03-20",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "public", "arrendatarios", "inmuebles"],
+							"query": [
+								{ "key": "cedula", "value": "9876543210", "description": "Obligatorio" },
+								{ "key": "fechaExpedicion", "value": "2019-03-20", "description": "Obligatorio (yyyy-MM-dd)" }
+							]
+						},
+						"description": "Consulta pública. Requiere cedula y fechaExpedicion. Devuelve datos del arrendatario y lista de inmuebles con información completa (InmuebleResponse), solo en estado Arrendado (incluye valorArriendo)."
 					}
 				}
 			]
@@ -579,10 +607,10 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"titulo\": \"Casa en Chapinero\",\n  \"descripcion\": \"Amplia casa con jardín.\",\n  \"precio\": 450000000,\n  \"direccion\": \"Calle 72 # 10-34\",\n  \"localidadId\": 2,\n  \"tipoId\": 1,\n  \"estadoId\": 1,\n  \"etiquetas\": \"nuevo\",\n  \"parqueaderos\": 2,\n  \"sectorId\": 1,\n  \"areaM2\": 120.50,\n  \"habitaciones\": 3,\n  \"banos\": 2,\n  \"estrato\": 4,\n  \"valorAdministracion\": 350000,\n  \"anoConstruccion\": 2018,\n  \"amoblado\": false,\n  \"piso\": 1\n}"
+							"raw": "{\n  \"titulo\": \"Casa en Chapinero\",\n  \"descripcion\": \"Amplia casa con jardín.\",\n  \"precioVenta\": 450000000,\n  \"direccion\": \"Calle 72 # 10-34\",\n  \"localidadId\": 2,\n  \"tipoId\": 1,\n  \"estadoId\": 1,\n  \"etiquetas\": \"nuevo\",\n  \"parqueaderos\": 2,\n  \"sectorId\": 1,\n  \"areaM2\": 120.50,\n  \"habitaciones\": 3,\n  \"banos\": 2,\n  \"estrato\": 4,\n  \"valorAdministracion\": 350000,\n  \"anoConstruccion\": 2018,\n  \"amoblado\": false,\n  \"piso\": 1\n}"
 						},
 						"url": "{{baseUrl}}/api/admin/inmuebles",
-						"description": "estadoId debe existir. sectorId opcional (GET /api/public/sectores). Opc.: parqueaderos, sectorId, areaM2, habitaciones, banos, estrato, valorAdministracion, anoConstruccion, amoblado, piso."
+						"description": "Al menos uno de precioVenta o valorArriendo obligatorio. estadoId, localidadId, tipoId obligatorios. Opc.: valorArriendo, propietarioId, parqueaderos, sectorId, areaM2, habitaciones, banos, estrato, valorAdministracion, anoConstruccion, amoblado, piso."
 					}
 				},
 				{
@@ -595,9 +623,10 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"titulo\": \"Casa en Chapinero (actualizada)\",\n  \"descripcion\": \"Amplia casa con jardín y garaje.\",\n  \"precio\": 480000000,\n  \"direccion\": \"Calle 72 # 10-34\",\n  \"localidadId\": 2,\n  \"tipoId\": 1,\n  \"estadoId\": 1,\n  \"etiquetas\": \"nuevo, rebajado\",\n  \"parqueaderos\": 2,\n  \"sectorId\": 1,\n  \"areaM2\": 120.50,\n  \"habitaciones\": 3,\n  \"banos\": 2,\n  \"estrato\": 4,\n  \"valorAdministracion\": 350000,\n  \"anoConstruccion\": 2018,\n  \"amoblado\": false,\n  \"piso\": 1\n}"
+							"raw": "{\n  \"titulo\": \"Casa en Chapinero (actualizada)\",\n  \"descripcion\": \"Amplia casa con jardín y garaje.\",\n  \"precioVenta\": 480000000,\n  \"direccion\": \"Calle 72 # 10-34\",\n  \"localidadId\": 2,\n  \"tipoId\": 1,\n  \"estadoId\": 1,\n  \"etiquetas\": \"nuevo, rebajado\",\n  \"parqueaderos\": 2,\n  \"sectorId\": 1,\n  \"areaM2\": 120.50,\n  \"habitaciones\": 3,\n  \"banos\": 2,\n  \"estrato\": 4,\n  \"valorAdministracion\": 350000,\n  \"anoConstruccion\": 2018,\n  \"amoblado\": false,\n  \"piso\": 1\n}"
 						},
-						"url": "{{baseUrl}}/api/admin/inmuebles/1"
+						"url": "{{baseUrl}}/api/admin/inmuebles/1",
+						"description": "Todos los campos modificables. Al menos uno de precioVenta o valorArriendo obligatorio."
 					}
 				},
 				{
@@ -606,6 +635,168 @@
 						"method": "DELETE",
 						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
 						"url": "{{baseUrl}}/api/admin/inmuebles/1"
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin - Propietarios",
+			"item": [
+				{
+					"name": "Listar propietarios",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/propietarios?page=0&size=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "propietarios"],
+							"query": [
+								{ "key": "page", "value": "0" },
+								{ "key": "size", "value": "20" },
+								{ "key": "cedula", "value": "", "disabled": true, "description": "Opcional: filtrar por cédula" },
+								{ "key": "fechaExpedicion", "value": "", "disabled": true, "description": "Opcional: yyyy-MM-dd" }
+							]
+						},
+						"description": "Cada propietario incluye inmuebles asociados con información completa (InmuebleResponse)."
+					}
+				},
+				{
+					"name": "Obtener propietario por ID",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": "{{baseUrl}}/api/admin/propietarios/1",
+						"description": "Incluye lista de inmuebles con información completa."
+					}
+				},
+				{
+					"name": "Crear propietario",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombres\": \"Carlos\",\n  \"apellidos\": \"Pérez Gómez\",\n  \"cedula\": \"1234567890\",\n  \"fechaExpedicion\": \"2020-05-15\",\n  \"inmuebleIds\": [1, 2]\n}"
+						},
+						"url": "{{baseUrl}}/api/admin/propietarios",
+						"description": "inmuebleIds obligatorio (al menos un ID). Respuesta incluye propietario con inmuebles completos."
+					}
+				},
+				{
+					"name": "Actualizar propietario",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombres\": \"Carlos\",\n  \"apellidos\": \"Pérez Gómez\",\n  \"cedula\": \"1234567890\",\n  \"fechaExpedicion\": \"2021-01-10\",\n  \"inmuebleIds\": null\n}"
+						},
+						"url": "{{baseUrl}}/api/admin/propietarios/1"
+					}
+				},
+				{
+					"name": "Eliminar propietario",
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": "{{baseUrl}}/api/admin/propietarios/1"
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin - Arrendatarios",
+			"item": [
+				{
+					"name": "Listar arrendatarios",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/arrendatarios?page=0&size=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "admin", "arrendatarios"],
+							"query": [
+								{ "key": "page", "value": "0" },
+								{ "key": "size", "value": "20" },
+								{ "key": "cedula", "value": "", "disabled": true },
+								{ "key": "fechaExpedicion", "value": "", "disabled": true, "description": "yyyy-MM-dd" }
+							]
+						},
+						"description": "Paginado. Cada ítem incluye inmuebles con información completa (InmuebleResponse). Opcional: cedula o fechaExpedicion para filtrar."
+					}
+				},
+				{
+					"name": "Obtener arrendatario por ID",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": "{{baseUrl}}/api/admin/arrendatarios/1",
+						"description": "Incluye listado de inmuebles asociados con información completa (InmuebleResponse)."
+					}
+				},
+				{
+					"name": "Crear arrendatario",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombres\": \"María\",\n  \"apellidos\": \"López Sánchez\",\n  \"cedula\": \"9876543210\",\n  \"fechaExpedicion\": \"2019-03-20\",\n  \"inmuebleIds\": [1, 3]\n}"
+						},
+						"url": "{{baseUrl}}/api/admin/arrendatarios",
+						"description": "inmuebleIds obligatorio (al menos un ID). Respuesta incluye arrendatario con inmuebles (información completa, InmuebleResponse)."
+					}
+				},
+				{
+					"name": "Actualizar arrendatario",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombres\": \"María\",\n  \"apellidos\": \"López Sánchez\",\n  \"cedula\": \"9876543210\",\n  \"fechaExpedicion\": \"2019-03-20\",\n  \"inmuebleIds\": null\n}"
+						},
+						"url": "{{baseUrl}}/api/admin/arrendatarios/1"
+					}
+				},
+				{
+					"name": "Eliminar arrendatario",
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": "{{baseUrl}}/api/admin/arrendatarios/1"
+					}
+				},
+				{
+					"name": "Asociar arrendatario a inmueble",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": "{{baseUrl}}/api/admin/arrendatarios/1/inmuebles/1",
+						"description": "204 sin cuerpo."
+					}
+				},
+				{
+					"name": "Desasociar arrendatario de inmueble",
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": "{{baseUrl}}/api/admin/arrendatarios/1/inmuebles/1",
+						"description": "204 sin cuerpo."
 					}
 				}
 			]
@@ -760,73 +951,6 @@
 						"method": "DELETE",
 						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
 						"url": "{{baseUrl}}/api/admin/inmuebles/1/videos/1"
-					}
-				}
-			]
-		},
-		{
-			"name": "Admin - Artículos",
-			"item": [
-				{
-					"name": "Listar artículos",
-					"request": {
-						"method": "GET",
-						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-						"url": {
-							"raw": "{{baseUrl}}/api/admin/articulos?page=0&size=20",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "admin", "articulos"],
-							"query": [
-								{ "key": "page", "value": "0" },
-								{ "key": "size", "value": "20" }
-							]
-						}
-					}
-				},
-				{
-					"name": "Obtener artículo por ID",
-					"request": {
-						"method": "GET",
-						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-						"url": "{{baseUrl}}/api/admin/articulos/1"
-					}
-				},
-				{
-					"name": "Crear artículo",
-					"request": {
-						"method": "POST",
-						"header": [
-							{ "key": "Authorization", "value": "Bearer {{token}}" },
-							{ "key": "Content-Type", "value": "application/json" }
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"titulo\": \"Tendencias del mercado inmobiliario 2025\",\n  \"contenido\": \"Contenido completo del artículo...\"\n}"
-						},
-						"url": "{{baseUrl}}/api/admin/articulos"
-					}
-				},
-				{
-					"name": "Actualizar artículo",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{ "key": "Authorization", "value": "Bearer {{token}}" },
-							{ "key": "Content-Type", "value": "application/json" }
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"titulo\": \"Tendencias del mercado inmobiliario 2025 (actualizado)\",\n  \"contenido\": \"Contenido actualizado del artículo...\"\n}"
-						},
-						"url": "{{baseUrl}}/api/admin/articulos/1"
-					}
-				},
-				{
-					"name": "Eliminar artículo",
-					"request": {
-						"method": "DELETE",
-						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-						"url": "{{baseUrl}}/api/admin/articulos/1"
 					}
 				}
 			]

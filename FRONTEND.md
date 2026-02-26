@@ -177,7 +177,6 @@ src/
     auth.js            # login, register, logout
     inmuebles.js       # listar público, detalle, etc.
     estados.js         # CRUD estados (admin)
-    articulos.js       # listar público, CRUD admin
   components/         # componentes reutilizables
   pages/              # páginas por ruta (Login, Inmuebles, AdminEstados, etc.)
   context/            # opcional: AuthContext para usuario/token
@@ -207,14 +206,18 @@ Asegúrate de que la URL en `.env` (o el proxy) apunte al mismo puerto donde cor
 |-----|--------|----------|------|
 | Login | POST | `/api/auth/login` | No |
 | Registro primer admin | POST | `/api/auth/register` | No |
-| Listar inmuebles (público) | GET | `/api/public/inmuebles?page=0&size=20` | No |
+| Listar inmuebles (público) | GET | `/api/public/inmuebles?page=0&size=20` (filtro opcional: `estadoId`) | No |
+| Listar estados (catálogo público) | GET | `/api/public/estados` | No |
 | Detalle inmueble (público) | GET | `/api/public/inmuebles/{id}` | No |
-| Listar artículos (público) | GET | `/api/public/articulos?page=0&size=20` | No |
 | Contacto | POST | `/api/public/contacto` | No |
+| Inmuebles del propietario (cédula + fecha expedición) | GET | `/api/public/propietarios/inmuebles?cedula=XXX&fechaExpedicion=yyyy-MM-dd` | No |
+| Inmuebles del arrendatario / cuánto pagar (cédula + fecha expedición) | GET | `/api/public/arrendatarios/inmuebles?cedula=XXX&fechaExpedicion=yyyy-MM-dd` | No |
 | Listar estados | GET | `/api/admin/estados?page=0&size=20` | JWT |
 | CRUD inmuebles | GET/POST/PUT/DELETE | `/api/admin/inmuebles` | JWT |
+| CRUD propietarios | GET/POST/PUT/DELETE | `/api/admin/propietarios` | JWT |
+| CRUD arrendatarios | GET/POST/PUT/DELETE | `/api/admin/arrendatarios` | JWT |
+| Asociar/desasociar arrendatario a inmueble | POST/DELETE | `/api/admin/arrendatarios/{id}/inmuebles/{inmuebleId}` | JWT |
 | CRUD imágenes por inmueble | GET/POST/DELETE | `/api/admin/inmuebles/{id}/imagenes` | JWT |
 | CRUD videos por inmueble | GET/POST/DELETE | `/api/admin/inmuebles/{id}/videos` | JWT |
-| CRUD artículos | GET/POST/PUT/DELETE | `/api/admin/articulos` | JWT |
 
 Documentación completa de la API (formato, paginación, ejemplos): ver **INSTRUCCIONES.md**, sección *API REST – Convenciones y paginación*.

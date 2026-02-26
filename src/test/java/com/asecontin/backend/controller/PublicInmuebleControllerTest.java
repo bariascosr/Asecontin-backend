@@ -41,12 +41,12 @@ class PublicInmuebleControllerTest {
 		LocalDateTime now = LocalDateTime.now();
 		InmuebleResponse r = new InmuebleResponse(
 				1L, "Casa test", "Desc", BigDecimal.valueOf(100000000),
-				"Calle 1", 1L, "Localidad", "Bogotá", "casa", 1L, "disponible", "nuevo",
+				"Calle 1", 1L, "Localidad", "Bogotá", "casa", 1L, "disponible", null, null, "nuevo",
 				1, null, null, null, null, null, null, null, null, false, null,
 				now, now, null);
 		PageResponse<InmuebleResponse> page = PageResponse.of(List.of(r), 1, 0, 20);
-		when(inmuebleService.listar(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
-				any(), any(), any(), any(), any(), anyInt(), anyInt())).thenReturn(Mono.just(page));
+		when(inmuebleService.listarPublico(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+				any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt())).thenReturn(Mono.just(page));
 
 		webTestClient.get()
 				.uri("/api/public/inmuebles")

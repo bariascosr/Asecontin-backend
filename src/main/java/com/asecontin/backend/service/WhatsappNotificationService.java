@@ -11,8 +11,10 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Envía notificaciones al agente por WhatsApp Cloud API (Meta) cuando se recibe un contacto.
@@ -62,20 +64,39 @@ public class WhatsappNotificationService {
 	}
 
 	private Mono<Void> sendMessage(String body) {
+		return sendToPhone(whatsappProperties.getAgentPhone(), body)
+				.doOnSuccess(v -> log.info("Notificación de contacto enviada por WhatsApp al agente."));
+	}
+
+	/**
+	 * Envía un mensaje de texto por WhatsApp a un número (solo dígitos, con código de país).
+	 * Si WhatsApp no está configurado, no hace nada.
+	 */
+	public Mono<Void> sendToPhone(String phone, String messageBody) {
+		if (!whatsappProperties.isEnabled()) {
+			log.debug("WhatsApp no configurado; no se envía mensaje.");
+			return Mono.empty();
+		}
+		if (phone == null || phone.isBlank() || messageBody == null || messageBody.isBlank()) {
+			return Mono.empty();
+		}
+		String to = phone.replaceAll("\\D", "");
+		if (to.length() < 10) {
+			log.warn("Número de teléfono inválido para WhatsApp: {}", phone);
+			return Mono.empty();
+		}
 		String url = GRAPH_BASE_URL + "/" + whatsappProperties.getApiVersion() + "/"
 				+ whatsappProperties.phoneNumberId() + "/messages";
-
 		Map<String, Object> payload = Map.of(
 				"messaging_product", "whatsapp",
 				"recipient_type", "individual",
-				"to", whatsappProperties.getAgentPhone().replaceAll("\\D", ""),
+				"to", to,
 				"type", "text",
 				"text", Map.of(
 						"preview_url", false,
-						"body", body
+						"body", messageBody
 				)
 		);
-
 		return webClient.post()
 				.uri(url)
 				.header("Authorization", "Bearer " + whatsappProperties.accessToken())
@@ -83,8 +104,61 @@ public class WhatsappNotificationService {
 				.bodyValue(payload)
 				.retrieve()
 				.bodyToMono(Void.class)
-				.doOnSuccess(v -> log.info("Notificación de contacto enviada por WhatsApp al agente."))
-				.doOnError(e -> log.warn("Error al enviar notificación WhatsApp: {}", e.getMessage()))
+				.doOnError(e -> log.warn("Error al enviar WhatsApp a {}: {}", to, e.getMessage()))
+				.onErrorResume(e -> Mono.empty());
+	}
+
+	/**
+	 * Envía un mensaje de plantilla (template) por WhatsApp. Para mensajes iniciados por la empresa
+	 * (ej. recordatorio de pago) es necesario usar una plantilla aprobada en Meta Business Manager.
+	 * @param phone Número con código de país (solo dígitos).
+	 * @param templateName Nombre de la plantilla (ej. recordatorio_pago).
+	 * @param languageCode Código de idioma (ej. es).
+	 * @param bodyParameters Parámetros en orden para el body de la plantilla ({{1}}, {{2}}, ...).
+	 */
+	public Mono<Void> sendTemplateToPhone(String phone, String templateName, String languageCode, List<String> bodyParameters) {
+		if (!whatsappProperties.isEnabled()) {
+			log.debug("WhatsApp no configurado; no se envía plantilla.");
+			return Mono.empty();
+		}
+		if (phone == null || phone.isBlank() || templateName == null || templateName.isBlank()) {
+			return Mono.empty();
+		}
+		String to = phone.replaceAll("\\D", "");
+		if (to.length() < 10) {
+			log.warn("Número de teléfono inválido para WhatsApp: {}", phone);
+			return Mono.empty();
+		}
+		String lang = languageCode != null && !languageCode.isBlank() ? languageCode.strip() : "es";
+		List<Map<String, String>> parameters = (bodyParameters != null ? bodyParameters : List.<String>of()).stream()
+				.map(p -> Map.<String, String>of("type", "text", "text", p != null ? p : ""))
+				.collect(Collectors.toList());
+		Map<String, Object> bodyComponent = Map.of(
+				"type", "body",
+				"parameters", parameters
+		);
+		Map<String, Object> template = Map.of(
+				"name", templateName.strip(),
+				"language", Map.of("code", lang),
+				"components", List.of(bodyComponent)
+		);
+		Map<String, Object> payload = Map.of(
+				"messaging_product", "whatsapp",
+				"recipient_type", "individual",
+				"to", to,
+				"type", "template",
+				"template", template
+		);
+		String url = GRAPH_BASE_URL + "/" + whatsappProperties.getApiVersion() + "/"
+				+ whatsappProperties.phoneNumberId() + "/messages";
+		return webClient.post()
+				.uri(url)
+				.header("Authorization", "Bearer " + whatsappProperties.accessToken())
+				.contentType(MediaType.APPLICATION_JSON)
+				.bodyValue(payload)
+				.retrieve()
+				.bodyToMono(Void.class)
+				.doOnError(e -> log.warn("Error al enviar plantilla WhatsApp a {}: {}", to, e.getMessage()))
 				.onErrorResume(e -> Mono.empty());
 	}
 
@@ -104,8 +178,11 @@ public class WhatsappNotificationService {
 			if (inmueble.direccion() != null && !inmueble.direccion().isBlank()) {
 				sb.append("Dirección: ").append(inmueble.direccion()).append("\n");
 			}
-			if (inmueble.precio() != null) {
-				sb.append("Precio: ").append(formatPrecio(inmueble.precio())).append("\n");
+			if (inmueble.precioVenta() != null && inmueble.precioVenta().compareTo(java.math.BigDecimal.ZERO) > 0) {
+				sb.append("Precio venta: ").append(formatPrecio(inmueble.precioVenta())).append("\n");
+			}
+			if (inmueble.valorArriendo() != null && inmueble.valorArriendo().compareTo(java.math.BigDecimal.ZERO) > 0) {
+				sb.append("Valor arriendo: ").append(formatPrecio(inmueble.valorArriendo())).append("\n");
 			}
 			if (inmueble.tipo() != null && !inmueble.tipo().isBlank()) {
 				sb.append("Tipo: ").append(inmueble.tipo()).append("\n");
